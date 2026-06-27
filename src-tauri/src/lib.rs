@@ -52,8 +52,7 @@ pub fn run() {
             // Wire on_change callback to emit "sessions-updated" Tauri event
             let app_handle = app.handle().clone();
             let on_change: OnChange = Arc::new(move |snap| {
-                let payload = serde_json::to_string(&snap).unwrap_or_default();
-                let _ = app_handle.emit("sessions-updated", payload);
+                let _ = app_handle.emit("sessions-updated", snap);
             });
 
             // Spawn axum server on 127.0.0.1:8765
@@ -67,11 +66,11 @@ pub fn run() {
                     .expect("axum server error");
             });
 
-            // Spawn stale ticker: every 30s, mark sessions stale with TTL=90s
+            // Spawn stale ticker: every 5s, mark sessions stale with TTL=90s
             let store_ticker = store.clone();
             let on_change_ticker = on_change.clone();
             tauri::async_runtime::spawn(async move {
-                let mut interval = tokio::time::interval(Duration::from_secs(30));
+                let mut interval = tokio::time::interval(Duration::from_secs(5));
                 loop {
                     interval.tick().await;
                     let changed = {
