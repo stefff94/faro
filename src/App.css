@@ -20,3 +20,4 @@ body,
 .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .blink { animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { 50% { opacity: 0.2; } }
+.empty-pill { font-size: 11px; opacity: 0.4; padding: 4px 6px; }

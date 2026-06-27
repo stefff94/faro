@@ -19,9 +19,11 @@ export default function App() {
 
   return (
     <div className="faro-root">
-      {sessions.map((session) => (
-        <SessionRow key={session.id} session={session} />
-      ))}
+      {sessions.length === 0 ? (
+        <div className="empty-pill">idle</div>
+      ) : (
+        sessions.map((s) => <SessionRow key={s.id} session={s} />)
+      )}
     </div>
   );
 }
