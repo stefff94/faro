@@ -14,9 +14,7 @@
       {
         "title": "faro-app",
         "width": 220,
-        "height": 80,
-        "x": 1000,
-        "y": 20,
+        "height": 120,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
@@ -26,7 +24,8 @@
     ],
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,

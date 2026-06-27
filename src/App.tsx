@@ -1,12 +1,13 @@
 import "./App.css";
-import { TrafficLight } from "./TrafficLight";
+import { TrafficLight } from "./components/TrafficLight";
 
-function App() {
+export default function App() {
   return (
-    <div className="faro-widget">
-      <TrafficLight status="working" label="my-project" />
+    <div className="faro-root">
+      <div className="session-row">
+        <TrafficLight status="working" />
+        <span className="label">dummy-session</span>
+      </div>
     </div>
   );
 }
-
-export default App;
