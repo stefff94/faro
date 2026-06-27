@@ -989,12 +989,14 @@ name = "faro-app"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "http-body-util",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
  "tokio",
+ "tower",
 ]
 
 [[package]]
