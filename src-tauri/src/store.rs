@@ -59,14 +59,16 @@ impl SessionStore {
         v
     }
 
-    /// Transition Working sessions to Stale if they exceed the TTL.
-    /// Only Working sessions are affected; other statuses are left unchanged.
-    pub fn mark_stale(&mut self, now_ms: i64, ttl_ms: i64) {
-        for session in self.sessions.values_mut() {
-            if session.status == Status::Working && now_ms - session.last_update > ttl_ms {
-                session.status = Status::Stale;
+    /// Stale only applies to `working` sessions past the TTL (HANDOFF.md §4 rule).
+    pub fn mark_stale(&mut self, ttl_ms: i64, now_ms: i64) -> bool {
+        let mut changed = false;
+        for s in self.sessions.values_mut() {
+            if s.status == Status::Working && now_ms - s.last_update > ttl_ms {
+                s.status = Status::Stale;
+                changed = true;
             }
         }
+        changed
     }
 }
 
@@ -145,37 +147,34 @@ mod tests {
     }
 
     #[test]
-    fn mark_stale_ignores_non_working() {
+    fn working_session_goes_stale_after_ttl() {
         let mut s = SessionStore::new();
-        s.apply("claude-code", &ev("UserPromptSubmit", "a", Some("/x/p"), None), 1000);
-        s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 2000); // Status::Done
-        s.apply("claude-code", &ev("Notification", "b", Some("/x/p"), Some("permission_prompt")), 3000); // Status::Blocked
+        s.apply("claude-code", &ev("PreToolUse", "a", Some("/x/p"), None), 1_000);
+        assert_eq!(s.snapshot()[0].status, Status::Working);
+        let changed = s.mark_stale(90_000, 1_000 + 90_001);
+        assert!(changed);
+        assert_eq!(s.snapshot()[0].status, Status::Stale);
+    }
 
-        s.mark_stale(10000, 5000); // ttl_ms=5000, now_ms=10000
+    #[test]
+    fn blocked_and_done_never_go_stale() {
+        let mut s = SessionStore::new();
+        s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 1_000);
+        s.apply("claude-code", &ev("Notification", "b", Some("/x/p"), Some("permission_prompt")), 2_000);
+        let changed = s.mark_stale(90_000, 1_000 + 1_000_000);
+        assert!(!changed);
         let snap = s.snapshot();
         assert_eq!(snap[0].status, Status::Done);
         assert_eq!(snap[1].status, Status::Blocked);
     }
 
     #[test]
-    fn mark_stale_with_expired_ttl() {
+    fn working_within_ttl_stays_working() {
         let mut s = SessionStore::new();
-        s.apply("claude-code", &ev("UserPromptSubmit", "a", Some("/x/p"), None), 1000);
+        s.apply("claude-code", &ev("PreToolUse", "a", Some("/x/p"), None), 1_000);
         assert_eq!(s.snapshot()[0].status, Status::Working);
-
-        s.mark_stale(7000, 5000); // now_ms=7000, ttl_ms=5000, delta=6000 > 5000
-        let snap = s.snapshot();
-        assert_eq!(snap[0].status, Status::Stale);
-    }
-
-    #[test]
-    fn mark_stale_with_fresh_session() {
-        let mut s = SessionStore::new();
-        s.apply("claude-code", &ev("UserPromptSubmit", "a", Some("/x/p"), None), 1000);
+        let changed = s.mark_stale(90_000, 1_000 + 50_000);
+        assert!(!changed);
         assert_eq!(s.snapshot()[0].status, Status::Working);
-
-        s.mark_stale(4000, 5000); // now_ms=4000, ttl_ms=5000, delta=3000 < 5000
-        let snap = s.snapshot();
-        assert_eq!(snap[0].status, Status::Working);
     }
 }
