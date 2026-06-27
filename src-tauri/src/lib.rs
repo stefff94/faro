@@ -1,3 +1,4 @@
+pub mod classify;
 pub mod model;
 
 use tauri::{Manager, PhysicalPosition};
