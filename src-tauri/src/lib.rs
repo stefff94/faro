@@ -4,7 +4,13 @@ pub mod model;
 pub mod source;
 pub mod store;
 
-use tauri::{Manager, PhysicalPosition};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use tauri::{Emitter, Manager, PhysicalPosition};
+
+use crate::http::{OnChange, SharedStore};
+use crate::store::SessionStore;
 
 fn position_top_right(window: &tauri::WebviewWindow) -> tauri::Result<()> {
     if let Some(monitor) = window.current_monitor()? {
@@ -16,6 +22,13 @@ fn position_top_right(window: &tauri::WebviewWindow) -> tauri::Result<()> {
         window.set_position(PhysicalPosition::new(x, y))?;
     }
     Ok(())
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -32,6 +45,46 @@ pub fn run() {
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             position_top_right(&window)?;
+
+            // Create shared store
+            let store: SharedStore = Arc::new(Mutex::new(SessionStore::new()));
+
+            // Wire on_change callback to emit "sessions-updated" Tauri event
+            let app_handle = app.handle().clone();
+            let on_change: OnChange = Arc::new(move |snap| {
+                let payload = serde_json::to_string(&snap).unwrap_or_default();
+                let _ = app_handle.emit("sessions-updated", payload);
+            });
+
+            // Spawn axum server on 127.0.0.1:8765
+            let router = crate::http::router(store.clone(), on_change.clone());
+            tauri::async_runtime::spawn(async move {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:8765")
+                    .await
+                    .expect("failed to bind 127.0.0.1:8765");
+                axum::serve(listener, router)
+                    .await
+                    .expect("axum server error");
+            });
+
+            // Spawn stale ticker: every 30s, mark sessions stale with TTL=90s
+            let store_ticker = store.clone();
+            let on_change_ticker = on_change.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(30));
+                loop {
+                    interval.tick().await;
+                    let changed = {
+                        let mut s = store_ticker.lock().unwrap();
+                        s.mark_stale(90_000, now_ms())
+                    };
+                    if changed {
+                        let snap = store_ticker.lock().unwrap().snapshot();
+                        on_change_ticker(snap);
+                    }
+                }
+            });
+
             Ok(())
         })
         .run(tauri::generate_context!())
