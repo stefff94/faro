@@ -1,3 +1,5 @@
+pub mod model;
+
 use tauri::{Manager, PhysicalPosition};
 
 fn position_top_right(window: &tauri::WebviewWindow) -> tauri::Result<()> {
