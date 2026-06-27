@@ -59,6 +59,13 @@ impl SessionStore {
         v
     }
 
+    /// Remove sessions untouched for longer than purge_ms, regardless of status.
+    pub fn purge(&mut self, purge_ms: i64, now_ms: i64) -> bool {
+        let before = self.sessions.len();
+        self.sessions.retain(|_, s| now_ms - s.last_update <= purge_ms);
+        self.sessions.len() != before
+    }
+
     /// Stale only applies to `working` sessions past the TTL (HANDOFF.md §4 rule).
     pub fn mark_stale(&mut self, ttl_ms: i64, now_ms: i64) -> bool {
         let mut changed = false;
@@ -176,5 +183,22 @@ mod tests {
         let changed = s.mark_stale(90_000, 1_000 + 50_000);
         assert!(!changed);
         assert_eq!(s.snapshot()[0].status, Status::Working);
+    }
+
+    #[test]
+    fn purge_removes_long_dead_sessions() {
+        let mut s = SessionStore::new();
+        s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 1_000);
+        let changed = s.purge(1_800_000, 1_000 + 1_800_001);
+        assert!(changed);
+        assert_eq!(s.snapshot().len(), 0);
+    }
+
+    #[test]
+    fn purge_keeps_recent_sessions() {
+        let mut s = SessionStore::new();
+        s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 1_000);
+        assert!(!s.purge(1_800_000, 1_000 + 60_000));
+        assert_eq!(s.snapshot().len(), 1);
     }
 }

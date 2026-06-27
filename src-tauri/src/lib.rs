@@ -66,19 +66,22 @@ pub fn run() {
                     .expect("axum server error");
             });
 
-            // Spawn stale ticker: every 5s, mark sessions stale with TTL=90s
+            // Spawn stale ticker: every 5s, mark sessions stale with TTL=90s; purge after 30min
+            const STALE_TTL_MS: i64 = 90_000;
+            const PURGE_TTL_MS: i64 = 30 * 60_000;
             let store_ticker = store.clone();
             let on_change_ticker = on_change.clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = tokio::time::interval(Duration::from_secs(5));
                 loop {
                     interval.tick().await;
-                    let changed = {
+                    let snap = {
                         let mut s = store_ticker.lock().unwrap();
-                        s.mark_stale(90_000, now_ms())
+                        let c1 = s.mark_stale(STALE_TTL_MS, now_ms());
+                        let c2 = s.purge(PURGE_TTL_MS, now_ms());
+                        if c1 || c2 { Some(s.snapshot()) } else { None }
                     };
-                    if changed {
-                        let snap = store_ticker.lock().unwrap().snapshot();
+                    if let Some(snap) = snap {
                         on_change_ticker(snap);
                     }
                 }
