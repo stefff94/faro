@@ -1,4 +1,4 @@
-type Status = "idle" | "working" | "blocked" | "done" | "stale" | "error";
+import type { Status } from "../types";
 
 const COLOR: Record<Status, string> = {
   idle: "#6b7280",

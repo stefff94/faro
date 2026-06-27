@@ -1,0 +1,11 @@
+import type { SessionState } from "../types";
+import { TrafficLight } from "./TrafficLight";
+
+export function SessionRow({ session }: { session: SessionState }) {
+  return (
+    <div className="session-row">
+      <TrafficLight status={session.status} />
+      <span className="label">{session.label}</span>
+    </div>
+  );
+}

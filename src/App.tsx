@@ -1,13 +1,27 @@
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
-import { TrafficLight } from "./components/TrafficLight";
+import type { SessionState } from "./types";
+import { sortSessions } from "./snapshot";
+import { SessionRow } from "./components/SessionRow";
 
 export default function App() {
+  const [sessions, setSessions] = useState<SessionState[]>([]);
+
+  useEffect(() => {
+    const unlisten = listen<SessionState[]>("sessions-updated", (event) => {
+      setSessions(sortSessions(event.payload));
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
+
   return (
     <div className="faro-root">
-      <div className="session-row">
-        <TrafficLight status="working" />
-        <span className="label">dummy-session</span>
-      </div>
+      {sessions.map((session) => (
+        <SessionRow key={session.id} session={session} />
+      ))}
     </div>
   );
 }
