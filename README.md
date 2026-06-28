@@ -69,15 +69,17 @@ Expected: JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
 
 ---
 
-## Status colours
+## Status chips
 
-| Light | Meaning |
-|-------|---------|
-| 🟡 Yellow (working) | Claude is processing / using a tool |
-| 🔴 Red (blocked) | Waiting for tool-use permission prompt |
-| 🟢 Green (done) | Turn complete |
-| ⚫ Grey (idle / stale) | No recent activity |
-| 🔴 Blinking red (error) | Session ended with failure |
+| Chip | Meaning |
+|------|---------|
+| `● working` | Claude is processing / using a tool |
+| `◆ input` | Waiting for tool-use permission prompt |
+| `✓ done` | Turn complete |
+| `· idle` | No recent activity |
+| `◆ error` | Session ended with failure |
+
+Faro collapses to a right-edge count pill in the corner of your screen. The pill escalates to an evident attention state when any session reaches `needs-input`, then decays to a compact persistent reminder until the prompt is answered.
 
 ---
 
