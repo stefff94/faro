@@ -18,7 +18,7 @@ export function CollapsedPill(
   }
   const blocked = phase === "needs-input-compact";
   return (
-    <div className={"pill " + (blocked ? "blo" : "calm")}>
+    <div className={"pill " + (blocked ? "blo" : "")}>
       {agg.input > 0 && <span className="cnt r">◆ {agg.input}</span>}
       {agg.working > 0 && <span className={"cnt y" + (blocked ? "" : " breathe")}>● {agg.working}</span>}
       {agg.done > 0 && <span className="cnt g">✓ {agg.done}</span>}

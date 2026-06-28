@@ -45,7 +45,6 @@ impl SessionStore {
                 });
                 if entry.status != status {
                     entry.status_since = now_ms;
-                    crate::git::invalidate();
                 }
                 entry.status = status;
                 entry.last_event_name = event.hook_event_name.clone();
