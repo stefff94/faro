@@ -231,6 +231,7 @@ mod tests {
 
     #[test]
     fn snapshot_includes_branch_and_summary_fields_defaulting_none() {
+        git::invalidate();
         let mut s = SessionStore::new();
         s.apply("claude-code", &ev("UserPromptSubmit", "a", Some("/nonexistent/cwd"), None), 1_000);
         let snap = s.snapshot();

@@ -127,7 +127,13 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Write;
+    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
+
+    fn test_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn parses_branch_ref() {
@@ -142,6 +148,9 @@ mod tests {
 
     #[test]
     fn branch_for_normal_git_dir() -> std::io::Result<()> {
+        let _guard = test_lock().lock().unwrap();
+        invalidate();
+
         let temp = TempDir::new()?;
         let repo_path = temp.path();
         let git_dir = repo_path.join(".git");
@@ -156,6 +165,9 @@ mod tests {
 
     #[test]
     fn branch_for_worktree_gitdir_file() -> std::io::Result<()> {
+        let _guard = test_lock().lock().unwrap();
+        invalidate();
+
         let temp = TempDir::new()?;
         let repo_path = temp.path();
 
@@ -176,6 +188,7 @@ mod tests {
 
     #[test]
     fn branch_for_caches_result() -> std::io::Result<()> {
+        let _guard = test_lock().lock().unwrap();
         // Start with a clean cache to avoid interference from other tests
         invalidate();
 
@@ -206,6 +219,9 @@ mod tests {
 
     #[test]
     fn branch_for_reads_from_subdirectory() -> std::io::Result<()> {
+        let _guard = test_lock().lock().unwrap();
+        invalidate();
+
         let temp = TempDir::new()?;
         let repo_path = temp.path();
         let git_dir = repo_path.join(".git");
