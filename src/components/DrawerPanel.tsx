@@ -1,0 +1,18 @@
+import type { ReactNode } from "react";
+
+export function DrawerPanel({
+  open, pill, panel, onEnter, onLeave, onToggle,
+}: {
+  open: boolean; pill: ReactNode; panel: ReactNode;
+  onEnter: () => void; onLeave: () => void; onToggle: () => void;
+}) {
+  return (
+    <div className="drawer" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      {open ? (
+        <div className="panel" onClick={(e) => e.stopPropagation()}>{panel}</div>
+      ) : (
+        <div onClick={onToggle}>{pill}</div>
+      )}
+    </div>
+  );
+}
