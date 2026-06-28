@@ -46,8 +46,8 @@ fn resolve_git_path(repo_path: &Path) -> std::io::Result<String> {
     ))
 }
 
-/// Get the current branch name for a repo, using the cache to avoid re-reading.
-pub fn branch_for(repo_path: &Path) -> std::io::Result<Option<String>> {
+/// Internal: Get the current branch name for a repo using Path, with full error handling.
+fn branch_for_path(repo_path: &Path) -> std::io::Result<Option<String>> {
     // Resolve the .git path
     let git_path = resolve_git_path(repo_path)?;
 
@@ -80,6 +80,21 @@ pub fn branch_for(repo_path: &Path) -> std::io::Result<Option<String>> {
     Ok(branch)
 }
 
+/// Get the current branch name for a repo (best-effort, no error propagation).
+/// Returns None on any error (missing .git, I/O failure, detached HEAD, etc.).
+pub fn branch_for(cwd: &str) -> Option<String> {
+    branch_for_path(Path::new(cwd)).ok().flatten()
+}
+
+/// Clear the branch name cache. Useful for testing or forcing a refresh.
+pub fn invalidate() {
+    if let Ok(mut cache) = BRANCH_CACHE.lock() {
+        if let Some(ref mut map) = cache.as_mut() {
+            map.clear();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,8 +122,8 @@ mod tests {
         let mut head = fs::File::create(git_dir.join("HEAD"))?;
         head.write_all(b"ref: refs/heads/feature-branch\n")?;
 
-        let branch = branch_for(repo_path)?;
-        assert_eq!(branch, Some("feature-branch".into()));
+        let branch = branch_for(repo_path.to_string_lossy().as_ref());
+        assert_eq!(branch.as_deref(), Some("feature-branch"));
         Ok(())
     }
 
@@ -127,8 +142,8 @@ mod tests {
         let mut git_file = fs::File::create(repo_path.join(".git"))?;
         git_file.write_all(format!("gitdir: {}\n", worktree_git.display()).as_bytes())?;
 
-        let branch = branch_for(repo_path)?;
-        assert_eq!(branch, Some("wt-branch".into()));
+        let branch = branch_for(repo_path.to_string_lossy().as_ref());
+        assert_eq!(branch.as_deref(), Some("wt-branch"));
         Ok(())
     }
 
@@ -141,16 +156,21 @@ mod tests {
         let mut head = fs::File::create(git_dir.join("HEAD"))?;
         head.write_all(b"ref: refs/heads/cached-branch\n")?;
 
+        let repo_str = repo_path.to_string_lossy().into_owned();
+
         // First call
-        let branch1 = branch_for(repo_path)?;
-        assert_eq!(branch1, Some("cached-branch".into()));
+        let branch1 = branch_for(&repo_str);
+        assert_eq!(branch1.as_deref(), Some("cached-branch"));
 
         // Modify the file
         fs::write(git_dir.join("HEAD"), b"ref: refs/heads/changed-branch\n")?;
 
         // Second call should return cached value
-        let branch2 = branch_for(repo_path)?;
-        assert_eq!(branch2, Some("cached-branch".into()));
+        let branch2 = branch_for(&repo_str);
+        assert_eq!(branch2.as_deref(), Some("cached-branch"));
+
+        // Clean up cache for other tests
+        invalidate();
         Ok(())
     }
 }
