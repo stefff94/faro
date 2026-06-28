@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// Global cache of resolved `.git` paths to branch names.
@@ -14,6 +14,20 @@ pub fn parse_head(head_contents: &str) -> Option<String> {
     let line = head_contents.trim();
     let rest = line.strip_prefix("ref:")?.trim();
     rest.strip_prefix("refs/heads/").map(|b| b.to_string())
+}
+
+/// Walk up the directory tree from `cwd` to find the `.git` directory or file.
+/// Returns the path to the `.git` directory/file, or None if not found.
+fn find_git_dir(cwd: &str) -> Option<PathBuf> {
+    let mut dir: Option<&Path> = Some(Path::new(cwd));
+    while let Some(d) = dir {
+        let candidate = d.join(".git");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        dir = d.parent();
+    }
+    None
 }
 
 /// Resolve the `.git` path, handling symlinks and worktrees.
@@ -46,10 +60,19 @@ fn resolve_git_path(repo_path: &Path) -> std::io::Result<String> {
     ))
 }
 
-/// Internal: Get the current branch name for a repo using Path, with full error handling.
-fn branch_for_path(repo_path: &Path) -> std::io::Result<Option<String>> {
-    // Resolve the .git path
-    let git_path = resolve_git_path(repo_path)?;
+/// Internal: Get the current branch name for a repo by walking up from cwd, with full error handling.
+fn branch_for_path(cwd: &str) -> std::io::Result<Option<String>> {
+    // Find the .git directory by walking up from cwd
+    let git_candidate = find_git_dir(cwd)
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, ".git not found"))?;
+
+    // Get the repository root (parent of .git)
+    let repo_path = git_candidate.parent()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid repo path"))?
+        .to_path_buf();
+
+    // Resolve the .git path (handles worktrees and canonicalizes)
+    let git_path = resolve_git_path(&repo_path)?;
 
     // Check cache
     {
@@ -82,13 +105,17 @@ fn branch_for_path(repo_path: &Path) -> std::io::Result<Option<String>> {
 
 /// Get the current branch name for a repo (best-effort, no error propagation).
 /// Returns None on any error (missing .git, I/O failure, detached HEAD, etc.).
+/// Walks up from `cwd` to find the repository root.
 pub fn branch_for(cwd: &str) -> Option<String> {
-    branch_for_path(Path::new(cwd)).ok().flatten()
+    branch_for_path(cwd).ok().flatten()
 }
 
 /// Clear the branch name cache. Useful for testing or forcing a refresh.
 pub fn invalidate() {
     if let Ok(mut cache) = BRANCH_CACHE.lock() {
+        if cache.is_none() {
+            *cache = Some(HashMap::new());
+        }
         if let Some(ref mut map) = cache.as_mut() {
             map.clear();
         }
@@ -149,6 +176,9 @@ mod tests {
 
     #[test]
     fn branch_for_caches_result() -> std::io::Result<()> {
+        // Start with a clean cache to avoid interference from other tests
+        invalidate();
+
         let temp = TempDir::new()?;
         let repo_path = temp.path();
         let git_dir = repo_path.join(".git");
@@ -158,16 +188,39 @@ mod tests {
 
         let repo_str = repo_path.to_string_lossy().into_owned();
 
-        // First call
+        // First call should populate cache
         let branch1 = branch_for(&repo_str);
         assert_eq!(branch1.as_deref(), Some("cached-branch"));
 
         // Modify the file
         fs::write(git_dir.join("HEAD"), b"ref: refs/heads/changed-branch\n")?;
 
-        // Second call should return cached value
+        // Second call should return cached value, not the modified file
         let branch2 = branch_for(&repo_str);
         assert_eq!(branch2.as_deref(), Some("cached-branch"));
+
+        // Clean up cache for other tests
+        invalidate();
+        Ok(())
+    }
+
+    #[test]
+    fn branch_for_reads_from_subdirectory() -> std::io::Result<()> {
+        let temp = TempDir::new()?;
+        let repo_path = temp.path();
+        let git_dir = repo_path.join(".git");
+        fs::create_dir(&git_dir)?;
+        let mut head = fs::File::create(git_dir.join("HEAD"))?;
+        head.write_all(b"ref: refs/heads/test-branch\n")?;
+
+        // Create a deep subdirectory
+        let sub = repo_path.join("src").join("deep");
+        fs::create_dir_all(&sub)?;
+
+        // Call from a subdirectory, not the repo root
+        invalidate();
+        let branch = branch_for(sub.to_string_lossy().as_ref());
+        assert_eq!(branch.as_deref(), Some("test-branch"));
 
         // Clean up cache for other tests
         invalidate();
