@@ -14,14 +14,13 @@ use tauri::{Emitter, Manager, PhysicalPosition};
 use crate::http::{OnChange, SharedStore};
 use crate::store::SessionStore;
 
-fn position_top_right(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+fn position_right_edge(window: &tauri::WebviewWindow) -> tauri::Result<()> {
     if let Some(monitor) = window.current_monitor()? {
         let screen = monitor.size();
         let win = window.outer_size()?;
-        let margin = 16;
-        let x = (screen.width as i32) - (win.width as i32) - margin;
-        let y = margin;
-        window.set_position(PhysicalPosition::new(x, y))?;
+        let x = (screen.width as i32) - (win.width as i32);
+        let y = ((screen.height as i32) - (win.height as i32)) / 4; // upper-ish
+        window.set_position(PhysicalPosition::new(x.max(0), y.max(0)))?;
     }
     Ok(())
 }
@@ -46,7 +45,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
-            position_top_right(&window)?;
+            position_right_edge(&window)?;
+            // The drawer only occupies the right strip; let clicks pass through the
+            // transparent area. Re-enabled implicitly where the webview paints opaque
+            // content is not automatic — Phase 1 keeps it simple: ignore cursor events
+            // globally only when collapsed is a Phase 2 refinement. For now, size the
+            // window to the drawer so there is little dead space.
+            let _ = window.set_ignore_cursor_events(false);
 
             // Create shared store
             let store: SharedStore = Arc::new(Mutex::new(SessionStore::new()));
