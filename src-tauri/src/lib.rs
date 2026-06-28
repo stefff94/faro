@@ -1,4 +1,5 @@
 pub mod classify;
+pub mod git;
 pub mod http;
 pub mod model;
 pub mod source;
