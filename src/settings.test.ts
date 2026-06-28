@@ -22,4 +22,11 @@ describe("settings", () => {
     localStorage.setItem("faro.settings", "{not json");
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
+  it("merges partial settings with defaults", () => {
+    localStorage.setItem("faro.settings", JSON.stringify({ soundEnabled: false }));
+    const loaded = loadSettings();
+    expect(loaded.soundEnabled).toBe(false);
+    expect(loaded.decayMs).toBe(8000);
+    expect(loaded.mutedSessionIds).toEqual([]);
+  });
 });
