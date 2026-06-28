@@ -36,8 +36,12 @@ impl SessionStore {
                     status,
                     last_event_name: event.hook_event_name.clone(),
                     last_update: now_ms,
+                    status_since: now_ms,
                     transcript_path: event.transcript_path.clone(),
                 });
+                if entry.status != status {
+                    entry.status_since = now_ms;
+                }
                 entry.status = status;
                 entry.last_event_name = event.hook_event_name.clone();
                 entry.last_update = now_ms;
@@ -72,6 +76,7 @@ impl SessionStore {
         for s in self.sessions.values_mut() {
             if s.status == Status::Working && now_ms - s.last_update > ttl_ms {
                 s.status = Status::Stale;
+                s.status_since = now_ms;
                 changed = true;
             }
         }
@@ -200,5 +205,19 @@ mod tests {
         s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 1_000);
         assert!(!s.purge(1_800_000, 1_000 + 60_000));
         assert_eq!(s.snapshot().len(), 1);
+    }
+
+    #[test]
+    fn status_since_updates_only_when_status_changes() {
+        let mut s = SessionStore::new();
+        s.apply("claude-code", &ev("UserPromptSubmit", "a", Some("/x/p"), None), 1_000); // Working
+        assert_eq!(s.snapshot()[0].status_since, 1_000);
+        // same status (still Working) at a later time → status_since unchanged
+        s.apply("claude-code", &ev("PreToolUse", "a", Some("/x/p"), None), 2_000);
+        assert_eq!(s.snapshot()[0].status_since, 1_000);
+        assert_eq!(s.snapshot()[0].last_update, 2_000);
+        // status change (Working → Done) → status_since moves
+        s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 3_000);
+        assert_eq!(s.snapshot()[0].status_since, 3_000);
     }
 }

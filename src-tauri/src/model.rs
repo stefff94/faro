@@ -22,6 +22,7 @@ pub struct SessionState {
     pub status: Status,
     pub last_event_name: String,
     pub last_update: i64,
+    pub status_since: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transcript_path: Option<String>,
 }
@@ -67,12 +68,14 @@ mod tests {
             status: Status::Working,
             last_event_name: "PreToolUse".into(),
             last_update: 1719500000000,
+            status_since: 1000,
             transcript_path: None,
         };
         let json = serde_json::to_string(&s).unwrap();
         assert!(json.contains("\"sessionId\":\"abc123\""));
         assert!(json.contains("\"status\":\"working\""));
         assert!(json.contains("\"lastEventName\":\"PreToolUse\""));
+        assert!(json.contains("\"statusSince\":1000"));
     }
 
     #[test]
