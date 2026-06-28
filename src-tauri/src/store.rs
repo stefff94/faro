@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use crate::classify::{classify, Transition};
+use crate::git;
 use crate::model::{HookEvent, SessionState, Status};
+use crate::transcript;
 
 pub fn label_from_cwd(cwd: Option<&str>) -> String {
     cwd.and_then(|c| c.trim_end_matches('/').rsplit('/').next())
@@ -38,6 +40,8 @@ impl SessionStore {
                     last_update: now_ms,
                     status_since: now_ms,
                     transcript_path: event.transcript_path.clone(),
+                    branch: None,
+                    task_summary: None,
                 });
                 if entry.status != status {
                     entry.status_since = now_ms;
@@ -59,6 +63,10 @@ impl SessionStore {
 
     pub fn snapshot(&self) -> Vec<SessionState> {
         let mut v: Vec<SessionState> = self.sessions.values().cloned().collect();
+        for s in &mut v {
+            s.branch = git::branch_for(&s.cwd);
+            s.task_summary = s.transcript_path.as_deref().and_then(transcript::last_user_prompt);
+        }
         v.sort_by(|a, b| a.id.cmp(&b.id));
         v
     }
@@ -219,5 +227,15 @@ mod tests {
         // status change (Working → Done) → status_since moves
         s.apply("claude-code", &ev("Stop", "a", Some("/x/p"), None), 3_000);
         assert_eq!(s.snapshot()[0].status_since, 3_000);
+    }
+
+    #[test]
+    fn snapshot_includes_branch_and_summary_fields_defaulting_none() {
+        let mut s = SessionStore::new();
+        s.apply("claude-code", &ev("UserPromptSubmit", "a", Some("/nonexistent/cwd"), None), 1_000);
+        let snap = s.snapshot();
+        assert_eq!(snap.len(), 1);
+        assert_eq!(snap[0].branch, None);
+        assert_eq!(snap[0].task_summary, None);
     }
 }

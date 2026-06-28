@@ -25,6 +25,10 @@ pub struct SessionState {
     pub status_since: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transcript_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_summary: Option<String>,
 }
 
 /// Raw hook payload forwarded by the reporter (Claude Code uses snake_case keys).
@@ -70,6 +74,8 @@ mod tests {
             last_update: 1719500000000,
             status_since: 1000,
             transcript_path: None,
+            branch: None,
+            task_summary: None,
         };
         let json = serde_json::to_string(&s).unwrap();
         assert!(json.contains("\"sessionId\":\"abc123\""));
