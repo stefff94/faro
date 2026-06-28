@@ -4,6 +4,7 @@ pub mod http;
 pub mod model;
 pub mod source;
 pub mod store;
+pub mod transcript;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
