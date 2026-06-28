@@ -18,3 +18,7 @@ export interface SessionState {
 export type Aggregate = {
   input: number; working: number; done: number; idle: number; total: number;
 };
+
+export type AttentionPhase =
+  | "idle" | "working" | "needs-input-evident" | "needs-input-compact";
+export type Cue = "done" | "needs-input";
