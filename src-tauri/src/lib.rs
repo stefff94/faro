@@ -38,20 +38,77 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+/// Returns the global cursor position in physical pixels (y=0 at top of primary display).
+/// Uses CoreGraphics CGEvent which reports coordinates with top-left origin.
+#[cfg(target_os = "macos")]
+fn cursor_pos_physical(scale: f64) -> Option<(i32, i32)> {
+    use std::ffi::c_void;
+
+    #[repr(C)]
+    struct CGPoint {
+        x: f64,
+        y: f64,
+    }
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGEventCreate(source: *const c_void) -> *mut c_void;
+        fn CGEventGetLocation(event: *const c_void) -> CGPoint;
+        fn CFRelease(cf: *const c_void);
+    }
+
+    unsafe {
+        let evt = CGEventCreate(std::ptr::null());
+        if evt.is_null() {
+            return None;
+        }
+        let pt = CGEventGetLocation(evt);
+        CFRelease(evt);
+        // CGEventGetLocation returns logical points; multiply by scale factor for physical pixels
+        Some(((pt.x * scale) as i32, (pt.y * scale) as i32))
+    }
+}
+
+#[tauri::command]
+fn cursor_in_window(window: tauri::WebviewWindow) -> bool {
+    #[cfg(not(target_os = "macos"))]
+    return false;
+
+    #[cfg(target_os = "macos")]
+    {
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let Some((cx, cy)) = cursor_pos_physical(scale) else {
+            return false;
+        };
+        let Ok(pos) = window.outer_position() else {
+            return false;
+        };
+        let Ok(size) = window.outer_size() else {
+            return false;
+        };
+        cx >= pos.x
+            && cx < pos.x + size.width as i32
+            && cy >= pos.y
+            && cy < pos.y + size.height as i32
+    }
+}
+
+#[tauri::command]
+fn set_cursor_passthrough(window: tauri::WebviewWindow, passthrough: bool) {
+    let _ = window.set_ignore_cursor_events(passthrough);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, cursor_in_window, set_cursor_passthrough])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             position_right_edge(&window)?;
-            // The drawer only occupies the right strip; let clicks pass through the
-            // transparent area. Re-enabled implicitly where the webview paints opaque
-            // content is not automatic — Phase 1 keeps it simple: ignore cursor events
-            // globally only when collapsed is a Phase 2 refinement. For now, size the
-            // window to the drawer so there is little dead space.
-            let _ = window.set_ignore_cursor_events(false);
+            // Start click-through; the frontend polling loop re-enables cursor events
+            // when the cursor enters the window bounds (cursor_in_window command).
+            let _ = window.set_ignore_cursor_events(true);
 
             // Create shared store
             let store: SharedStore = Arc::new(Mutex::new(SessionStore::new()));

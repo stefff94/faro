@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import type { SessionState } from "./types";
 import { sortSessions, aggregate } from "./snapshot";
@@ -27,6 +28,28 @@ export default function App() {
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  // Poll cursor position every 80ms; toggle window click-through accordingly.
+  // The window starts with ignore_cursor_events=true (click-through by default).
+  // When the cursor enters the window bounds, Rust disables click-through so the
+  // UI becomes interactive; when the cursor leaves, click-through is re-enabled.
+  useEffect(() => {
+    let active = true;
+    let lastIn = false;
+    async function poll() {
+      if (!active) return;
+      try {
+        const inWin = await invoke<boolean>("cursor_in_window");
+        if (inWin !== lastIn) {
+          lastIn = inWin;
+          await invoke("set_cursor_passthrough", { passthrough: !inWin });
+        }
+      } catch { /* ignore — not in Tauri context (e.g. browser dev) */ }
+      if (active) setTimeout(poll, 80);
+    }
+    poll();
+    return () => { active = false; };
   }, []);
 
   const ordered = useMemo(() => {
