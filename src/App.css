@@ -3,16 +3,19 @@ html, body, #root { background: transparent; width: 100%; height: 100%; overflow
 
 .faro-root {
   font-family: -apple-system, system-ui, sans-serif; color: #e5e7eb;
-  height: 100%; display: flex; justify-content: flex-end; align-items: flex-start;
+  height: 100%; width: 100%; position: relative;
 }
-.drawer { padding: 8px 0; }
+/* top MUST match FIT_MARGIN.top in src/hooks/useWindowFit.ts */
+.drawer { position: absolute; top: 30px; right: 0; }
 
 /* glass surface shared by pill + panel */
 .pill, .panel {
   backdrop-filter: blur(20px);
-  background: linear-gradient(160deg, rgba(28,30,38,.86), rgba(18,19,26,.9));
-  border: 1px solid rgba(255,255,255,.08); border-right: none;
-  border-radius: 12px 0 0 12px; box-shadow: -6px 8px 30px rgba(0,0,0,.45);
+  background: linear-gradient(160deg, rgba(24,26,34,.95), rgba(14,15,21,.97));
+  border: 1px solid rgba(255,255,255,.14); border-right: none;
+  border-radius: 12px 0 0 12px;
+  /* dark separation ring + soft light top edge + deep shadow → reads on any bg */
+  box-shadow: 0 0 0 1px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10), -8px 10px 34px rgba(0,0,0,.55);
 }
 .panel { width: 330px; padding: 9px; }
 .phdr { display: flex; justify-content: space-between; padding: 4px 6px 10px;
@@ -21,7 +24,7 @@ html, body, #root { background: transparent; width: 100%; height: 100%; overflow
 
 /* collapsed pill states */
 .pill { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; padding: 9px 11px; }
-.pill.nub { opacity: .55; padding: 9px; }
+.pill.nub { opacity: .85; padding: 9px; }
 .pill.blo { box-shadow: -6px 8px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(239,68,68,.4); }
 .pill.bhi { min-width: 190px; align-items: stretch; padding: 12px 14px;
   border-color: rgba(239,68,68,.5); box-shadow: -6px 8px 30px rgba(0,0,0,.5), 0 0 26px rgba(239,68,68,.35);
