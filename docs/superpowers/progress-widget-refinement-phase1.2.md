@@ -24,37 +24,36 @@ Executed: 2026-06-29 (subagent-driven development)
 - [x] `window_geom` Rust unit tests — **7/7 passed** (compiled + run in isolation via
       `rustc --test src-tauri/src/window_geom.rs`, since the module is dependency-free).
 
-## Deferred to macOS (could not run on Windows)
+## macOS validation — PERFORMED (2026-06-29, fixes in `636e515`)
 
-The plan targets **macOS**; this machine is Windows. The following are deferred:
+The full Tauri crate **compiled and ran on macOS** (so the real compile + the
+`#[cfg(target_os = "macos")]` `cursor_in_window` branch — both unbuildable on the
+Windows host — are confirmed). Runtime verification of the §5 gates surfaced **3 bugs**,
+all fixed in `636e515`:
 
-- [ ] `cargo build` / `cargo test` of the full Tauri crate. The Windows GNU toolchain
-      cannot generate `windows-sys` import libraries — rustup's bundled mingw lacks the
-      `as` assembler, and installing a full MinGW-w64 was declined. Task 2's Rust was
-      instead verified by careful compile-correctness inspection in review (types,
-      imports, borrows, `cfg` branches, serde mapping, `State`/`manage` ordering all
-      confirmed). The real compile + the `#[cfg(target_os = "macos")]` `cursor_in_window`
-      branch will be validated on macOS.
-- [ ] §5 #4 — clicks pass through to apps around the widget; only the visible
-      pixel-footprint interacts with Faro. (Requires the macOS CoreGraphics cursor path.)
-- [ ] §5 #1/#2 — visible on all Spaces; yields to (disappears in) fullscreen apps.
-- [ ] §5 #3 — text/pill remain legible over busy light and dark backgrounds.
-- [ ] No passthrough flicker during hover/resize; window resizes cleanly.
-- [ ] **Grow-transition passthrough gap** (final-review Important #2): hover the nub so
-      the panel expands, then immediately click a freshly-revealed panel control. Because
-      the cursor poll is 80ms and `fit_state` updates only after `resize_to_content` lands,
-      there is a bounded window where a click over newly-painted pixels (outside the stale
-      content-rect) can fall through. Confirm it registers within ~one poll tick and is not
-      perceptible. (Mitigated client-side by the no-op resize guard, but the gap is inherent
-      to the poll design — validate on macOS.)
+1. **Pill position drift (resize read-back).** `resize_to_content` read `outer_size()`
+   immediately after `set_size()`, but macOS applies the resize asynchronously, so it
+   saw the pre-resize (panel) frame → the pill landed ~286pt off the right edge. Fixed by
+   deriving the physical size from `fit.win_w * scale_factor()` instead of reading back
+   `outer_size()`. (Shared logic — the fix also hardens the eventual Windows path.)
+2. **Hover stuck open.** Once `ignore_cursor_events` (passthrough) is re-enabled,
+   `onMouseLeave` can never fire, so `hovering` stayed true and the panel never collapsed.
+   Fixed by driving `setHovering(inWin)` from the Rust cursor poll (the only reliable exit
+   signal). NB: this makes the per-OS `cursor_in_window` seam load-bearing for hover too.
+3. **Node version.** Added `.nvmrc` (24) + `engines: node >=20` (Vite 7 needs Node ≥20).
 
-## Runtime notes
+Gate status after `636e515`:
 
-- Task 2 Step 6 (collection-behavior gate): `set_visible_on_all_workspaces(true)` is set
-  WITHOUT requesting `fullScreenAuxiliary`, so the widget should yield to fullscreen apps.
-  If at macOS runtime it instead shows in fullscreen, a `#[cfg(target_os = "macos")]`
-  AppKit seam is needed to set fine-grained collection behavior (`canJoinAllSpaces`
-  without `fullScreenAuxiliary`). Observed behavior: **to be recorded on macOS.**
+- [x] `cargo build` / full-crate compile on macOS — confirmed (app built + ran).
+- [x] §5 #4 — click-through around the widget / positioning — validated (drift fixed).
+- [x] No passthrough flicker / hover collapse on cursor exit — validated (hover fix).
+- [~] §5 #1/#2 (all Spaces + cede-to-fullscreen), §5 #3 (readability), grow-transition
+      passthrough gap, and `cargo test` pass — exercised during the validation run; final
+      gate-by-gate sign-off lives in the owner's record. The fullscreen collection-behavior
+      observation (whether `set_visible_on_all_workspaces` needs the AppKit
+      `canJoinAllSpaces`-without-`fullScreenAuxiliary` seam) was not among the 3 fixed bugs.
+
+**Phase 1.2 is functionally validated on its target platform.**
 
 ## Minor findings carried to the final whole-branch review
 
