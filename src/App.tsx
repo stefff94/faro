@@ -47,6 +47,9 @@ export default function App() {
         if (inWin !== lastIn) {
           lastIn = inWin;
           await invoke("set_cursor_passthrough", { passthrough: !inWin });
+          // Drive hovering from the Rust poll: onMouseLeave can't fire once passthrough
+          // is re-enabled, so the poll is the only reliable exit signal.
+          setHovering(inWin);
         }
       } catch { /* ignore — not in Tauri context (e.g. browser dev) */ }
       if (active) setTimeout(poll, 80);

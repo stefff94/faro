@@ -67,12 +67,16 @@ fn resize_to_content(
 
     if let Some(monitor) = window.current_monitor()? {
         let screen = monitor.size();
-        let win = window.outer_size()?;
+        // Use the logical size we just set (not outer_size(), which may still reflect
+        // the pre-resize frame on macOS before the compositor applies the change).
+        let scale = window.scale_factor()?;
+        let win_w_phys = (fit.win_w * scale).round() as i32;
+        let win_h_phys = (fit.win_h * scale).round() as i32;
         let (x, y) = crate::window_geom::right_edge_position(
             screen.width as i32,
             screen.height as i32,
-            win.width as i32,
-            win.height as i32,
+            win_w_phys,
+            win_h_phys,
         );
         window.set_position(PhysicalPosition::new(x, y))?;
     }
