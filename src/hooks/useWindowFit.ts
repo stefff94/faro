@@ -34,10 +34,22 @@ export function useWindowFit(ref: React.RefObject<HTMLElement | null>) {
     const el = ref.current;
     if (!el) return;
     let raf = 0;
+    let lastSent: ReturnType<typeof computeFit> | null = null;
     const report = () => {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) return;
       const fit = computeFit(Math.ceil(r.width), Math.ceil(r.height));
+      // Skip redundant resizes: only invoke when the fit actually changed. Guards
+      // against a ResizeObserver feedback loop (resize → window size change → re-observe).
+      if (
+        lastSent &&
+        lastSent.winW === fit.winW && lastSent.winH === fit.winH &&
+        lastSent.contentX === fit.contentX && lastSent.contentY === fit.contentY &&
+        lastSent.contentW === fit.contentW && lastSent.contentH === fit.contentH
+      ) {
+        return;
+      }
+      lastSent = fit;
       invoke("resize_to_content", { fit }).catch(() => {
         /* ignore — not in Tauri context (e.g. browser dev) */
       });
@@ -46,6 +58,8 @@ export function useWindowFit(ref: React.RefObject<HTMLElement | null>) {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(report);
     });
+    // `el` is captured once at mount; the observer assumes the observed element
+    // (.drawer) stays mounted for the hook's lifetime (DrawerPanel always renders it).
     ro.observe(el);
     report();
     return () => {
