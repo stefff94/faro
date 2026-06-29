@@ -40,6 +40,13 @@ The plan targets **macOS**; this machine is Windows. The following are deferred:
 - [ ] §5 #1/#2 — visible on all Spaces; yields to (disappears in) fullscreen apps.
 - [ ] §5 #3 — text/pill remain legible over busy light and dark backgrounds.
 - [ ] No passthrough flicker during hover/resize; window resizes cleanly.
+- [ ] **Grow-transition passthrough gap** (final-review Important #2): hover the nub so
+      the panel expands, then immediately click a freshly-revealed panel control. Because
+      the cursor poll is 80ms and `fit_state` updates only after `resize_to_content` lands,
+      there is a bounded window where a click over newly-painted pixels (outside the stale
+      content-rect) can fall through. Confirm it registers within ~one poll tick and is not
+      perceptible. (Mitigated client-side by the no-op resize guard, but the gap is inherent
+      to the poll design — validate on macOS.)
 
 ## Runtime notes
 
