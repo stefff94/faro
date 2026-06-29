@@ -5,6 +5,7 @@ pub mod model;
 pub mod source;
 pub mod store;
 pub mod transcript;
+pub mod window_geom;
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
