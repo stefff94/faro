@@ -2,9 +2,9 @@ import { useEffect } from "react";
 import type React from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-// top: 30 is shared with the .faro-root CSS top-offset rule (handled in a
-// separate task — do NOT change this value without updating that CSS rule).
-export const FIT_MARGIN = { left: 40, top: 30, bottom: 40 };
+// Transparent margins (CSS px) reserved around the painted widget for shadow/glow.
+// `top` MUST match `.drawer { top: 30px }` in src/App.css (kept in sync by hand).
+export const FIT_MARGIN = { left: 40, top: 30, bottom: 40 } as const;
 
 export function computeFit(
   contentW: number,
