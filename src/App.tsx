@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
@@ -7,6 +7,7 @@ import { sortSessions, aggregate } from "./snapshot";
 import { loadSettings, saveSettings, isMuted, type Settings } from "./settings";
 import { useAttention } from "./hooks/useAttention";
 import { useAudioCues } from "./hooks/useAudioCues";
+import { useWindowFit } from "./hooks/useWindowFit";
 import { CollapsedPill } from "./components/CollapsedPill";
 import { DrawerPanel } from "./components/DrawerPanel";
 import { SessionCard } from "./components/SessionCard";
@@ -20,6 +21,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pinnedTop, setPinnedTop] = useState<string[]>([]);
   const [now, setNow] = useState(Date.now());
+  const rootRef = useRef<HTMLDivElement>(null);
+  useWindowFit(rootRef);
 
   useEffect(() => {
     const un = listen<SessionState[]>("sessions-updated", (e) => setSessions(e.payload));
@@ -71,6 +74,7 @@ export default function App() {
   return (
     <div className="faro-root">
       <DrawerPanel
+        rootRef={rootRef}
         open={open}
         onEnter={() => setHovering(true)}
         onLeave={() => setHovering(false)}
