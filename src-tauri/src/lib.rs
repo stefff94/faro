@@ -33,6 +33,52 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
+/// Last content-fit reported by the frontend, used for cursor hit-testing.
+struct ContentFitState(Mutex<crate::window_geom::ContentFit>);
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FitArgs {
+    win_w: f64,
+    win_h: f64,
+    content_x: f64,
+    content_y: f64,
+    content_w: f64,
+    content_h: f64,
+}
+
+/// Resize the window to hug the painted widget and re-anchor it to the right edge,
+/// then remember the content rect so cursor hit-testing targets only painted pixels.
+#[tauri::command]
+fn resize_to_content(
+    window: tauri::WebviewWindow,
+    fit_state: tauri::State<ContentFitState>,
+    fit: FitArgs,
+) -> tauri::Result<()> {
+    use tauri::{LogicalSize, PhysicalPosition};
+
+    window.set_size(LogicalSize::new(fit.win_w, fit.win_h))?;
+    *fit_state.0.lock().unwrap() = crate::window_geom::ContentFit {
+        x: fit.content_x,
+        y: fit.content_y,
+        w: fit.content_w,
+        h: fit.content_h,
+    };
+
+    if let Some(monitor) = window.current_monitor()? {
+        let screen = monitor.size();
+        let win = window.outer_size()?;
+        let (x, y) = crate::window_geom::right_edge_position(
+            screen.width as i32,
+            screen.height as i32,
+            win.width as i32,
+            win.height as i32,
+        );
+        window.set_position(PhysicalPosition::new(x, y))?;
+    }
+    Ok(())
+}
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -71,9 +117,12 @@ fn cursor_pos_physical(scale: f64) -> Option<(i32, i32)> {
 }
 
 #[tauri::command]
-fn cursor_in_window(window: tauri::WebviewWindow) -> bool {
+fn cursor_in_window(window: tauri::WebviewWindow, fit_state: tauri::State<ContentFitState>) -> bool {
     #[cfg(not(target_os = "macos"))]
-    return false;
+    {
+        let _ = (&window, &fit_state);
+        return false;
+    }
 
     #[cfg(target_os = "macos")]
     {
@@ -84,13 +133,9 @@ fn cursor_in_window(window: tauri::WebviewWindow) -> bool {
         let Ok(pos) = window.outer_position() else {
             return false;
         };
-        let Ok(size) = window.outer_size() else {
-            return false;
-        };
-        cx >= pos.x
-            && cx < pos.x + size.width as i32
-            && cy >= pos.y
-            && cy < pos.y + size.height as i32
+        let fit = *fit_state.0.lock().unwrap();
+        let rect = crate::window_geom::content_rect_physical(pos.x, pos.y, fit, scale);
+        crate::window_geom::point_in_rect(cx, cy, rect)
     }
 }
 
@@ -103,9 +148,20 @@ fn set_cursor_passthrough(window: tauri::WebviewWindow, passthrough: bool) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, cursor_in_window, set_cursor_passthrough])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            cursor_in_window,
+            set_cursor_passthrough,
+            resize_to_content
+        ])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
+            app.manage(ContentFitState(Mutex::new(
+                crate::window_geom::ContentFit { x: 0.0, y: 0.0, w: 0.0, h: 0.0 },
+            )));
+            // Show on every Space/desktop. We intentionally do NOT request
+            // fullScreenAuxiliary: the widget yields to fullscreen apps.
+            let _ = window.set_visible_on_all_workspaces(true);
             position_right_edge(&window)?;
             // Start click-through; the frontend polling loop re-enables cursor events
             // when the cursor enters the window bounds (cursor_in_window command).

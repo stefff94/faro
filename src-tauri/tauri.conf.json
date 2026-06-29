@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "faro-app",
-        "width": 360,
-        "height": 700,
+        "width": 160,
+        "height": 90,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
