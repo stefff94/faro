@@ -36,11 +36,7 @@ if (-not (Test-Path $srcReporter)) {
   exit 1
 }
 
-# 1. Copy the reporter into <ClaudeHome>\hooks
-New-Item -ItemType Directory -Force -Path $hooksDir | Out-Null
-Copy-Item -Path $srcReporter -Destination $dest -Force
-
-# 2. Load settings (or empty); abort on malformed JSON WITHOUT writing
+# 1. Load settings (or empty); abort on malformed JSON WITHOUT writing
 $settings = [ordered]@{}
 if (Test-Path $settingsPath) {
   $raw = Get-Content -Path $settingsPath -Raw
@@ -53,6 +49,10 @@ if (Test-Path $settingsPath) {
     $settings = ConvertTo-HashtableDeep $parsed
   }
 }
+
+# 2. Copy the reporter into <ClaudeHome>\hooks
+New-Item -ItemType Directory -Force -Path $hooksDir | Out-Null
+Copy-Item -Path $srcReporter -Destination $dest -Force
 
 # 3. Ensure a hooks object
 if (-not $settings.Contains("hooks") -or $null -eq $settings["hooks"] -or -not ($settings["hooks"] -is [System.Collections.IDictionary])) {

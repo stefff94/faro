@@ -35,6 +35,7 @@ foreach ($e in $events) {
   Check $hasFaro "event $e registers the Faro reporter"
 }
 $pre = @($s.hooks.PreToolUse)
+# NB: this only checks the command survives; Test 4 is what guards that its `hooks` stays a JSON array.
 Check ((@($pre | Where-Object { @($_.hooks.command) -like "*other/hook.cmd*" }).Count) -eq 1) "PreToolUse keeps the pre-existing non-Faro hook"
 Check (Test-Path (Join-Path $h1 "hooks\agent-monitor-report.cmd")) "reporter copied into ClaudeHome\hooks"
 Check (Test-Path (Join-Path $h1 "settings.json.faro-bak")) "backup created"
@@ -45,14 +46,17 @@ $s2 = Get-Content (Join-Path $h1 "settings.json") -Raw | ConvertFrom-Json
 $preFaro = (@(@($s2.hooks.PreToolUse) | Where-Object { @($_.hooks.command) -like "*agent-monitor-report.cmd*" }).Count)
 Check ($preFaro -eq 1) "PreToolUse has exactly one Faro group after re-run"
 Check ((@($s2.hooks.SessionStart).Count) -eq 1) "SessionStart has exactly one group after re-run"
+Check ((@(@($s2.hooks.PreToolUse) | Where-Object { @($_.hooks.command) -like "*other/hook.cmd*" }).Count) -eq 1) "PreToolUse keeps exactly one non-Faro group after re-run"
 
 Write-Host "Test 3: aborts on malformed settings.json without overwriting it"
 $h3 = New-TempHome
 $bad = "{ this is not json"
-Set-Content -Path (Join-Path $h3 "settings.json") -Value $bad -Encoding UTF8
+[System.IO.File]::WriteAllText((Join-Path $h3 "settings.json"), $bad, (New-Object System.Text.UTF8Encoding($false)))
 $code3 = Run-Installer $h3
 Check ($code3 -ne 0) "installer exits non-zero on malformed settings"
 Check (((Get-Content (Join-Path $h3 "settings.json") -Raw).Trim()) -eq $bad) "malformed settings.json left unchanged"
+Check (-not (Test-Path (Join-Path $h3 "hooks\agent-monitor-report.cmd"))) "no reporter copied on malformed abort (true no-op)"
+Check (-not (Test-Path (Join-Path $h3 "settings.json.faro-bak"))) "no backup written on malformed abort"
 
 Write-Host "Test 4: a pre-existing non-Faro hook keeps its array structure"
 $h4 = New-TempHome
