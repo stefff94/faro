@@ -9,6 +9,22 @@
 
 ---
 
+## Addendum (2026-06-30) — correzione post-implementazione: gli hook girano in Git Bash
+
+**Finding al gate e2e.** Su Windows, Claude Code esegue i `command` degli hook tramite il **proprio Git Bash** (`/usr/bin/bash`, MINGW64), **non** tramite cmd.exe e **non** tramite il `bash.exe` di WSL sul PATH di sistema. La §1 ("Ambiente Windows verificato") assunse erroneamente che il `bash` rilevante fosse quello WSL → da cui la scelta del reporter `.cmd`. Conseguenze:
+
+- Un path con backslash come `C:\Users\…\agent-monitor-report.cmd` viene **mangiato da bash** (`\U`, `\s`, … interpretati come escape) → `command not found`. Il reporter `.cmd` registrato con path Windows era quindi **morto in partenza** in questo modello di esecuzione.
+- Poiché gli hook girano comunque in Git Bash (che include `curl` in `/mingw64/bin`), la scelta corretta è **riusare il reporter POSIX di macOS** `agent-monitor-report.sh`. Niente reporter Windows separato; il `.cmd` è stato rimosso.
+
+**Decisione (sostituisce §4/§5 dove citano il `.cmd`):**
+- **Reporter Windows = `agent-monitor-report.sh`** (lo stesso di macOS), copiato in `%USERPROFILE%\.claude\hooks\`.
+- **Comando registrato = `bash "C:/Users/<you>/.claude/hooks/agent-monitor-report.sh"`** — slash in avanti + prefisso `bash` (non dipende dal bit di esecuzione, che una copia PowerShell non può impostare).
+- **Installer**: logica di merge/backup invariata; cambiano solo il file copiato (`.sh`) e la stringa comando; la detection del gruppo Faro usa il substring `agent-monitor-report`, così un re-run **migra** automaticamente le vecchie registrazioni `.cmd`.
+
+**Validazione e2e (verde):** dopo il fix, sessioni Claude Code reali (Askme-trunk, SV/faro su `feat/windows-reporter`, AskMe Desk) compaiono in `GET /sessions` con UUID reali e branch — pipeline hook→broker confermata end-to-end.
+
+---
+
 ## 1. Contesto
 
 Dopo la Windows parity dell'overlay (mergiata in `main` @ `d4a88a8`), il **broker** (axum, `127.0.0.1:8765`, `POST /event` + `GET /sessions`) è cross-platform e **confermato funzionante su Windows** (provato a runtime: 3 sessioni iniettate a mano hanno popolato il widget; la branch detection di `git.rs` — fixata in `d4a88a8` con `Path::join` — ha risolto `"branch":"main"`).

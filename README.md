@@ -78,32 +78,36 @@ Expected: JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
 
 ### Registering the hook on Windows
 
-Windows uses a native `.cmd` reporter and an installer that edits `settings.json` for you.
-Requires `curl.exe` (built into Windows 10 1803+) and Windows PowerShell.
+On Windows, Claude Code runs hook commands through **Git Bash** (which it requires), so Faro
+reuses the same POSIX reporter as macOS — `agent-monitor-report.sh` — registered as
+`bash "<path>"`. A native `.cmd` with a backslash path does **not** work: Git Bash mangles the
+backslashes into `command not found`. Requires Git Bash and its bundled `curl`.
 
-**Automated (recommended):**
+**Automated (recommended)** — from Windows PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File hooks\install-windows.ps1
 ```
 
-This copies `agent-monitor-report.cmd` into `%USERPROFILE%\.claude\hooks\` and merges the
-seven hook events into `%USERPROFILE%\.claude\settings.json` (non-destructive, idempotent,
-with a `settings.json.faro-bak` backup). Restart/reload Claude Code afterward so it re-reads
-the file.
+This copies `agent-monitor-report.sh` into `%USERPROFILE%\.claude\hooks\` and merges the seven
+hook events into `%USERPROFILE%\.claude\settings.json`, each registered as
+`bash "C:/Users/YOU/.claude/hooks/agent-monitor-report.sh"` (non-destructive and idempotent —
+re-running also upgrades an older `.cmd` registration — with a `settings.json.faro-bak` backup).
+Start a **new** Claude Code session afterward; hooks are read at session start, not live.
 
-**Smoke test** (with the Faro widget running). PowerShell's `'json' | & file.cmd` does **not**
-deliver stdin to a `.cmd`, so feed the payload via a file:
+**Smoke test** (with the Faro widget running), from **Git Bash** — identical to macOS:
 
-```powershell
-'{"hook_event_name":"UserPromptSubmit","session_id":"smoke","cwd":"C:/x"}' | Out-File -Encoding ascii -NoNewline "$env:TEMP\faro-smoke.json"
-cmd /c "`"$env:USERPROFILE\.claude\hooks\agent-monitor-report.cmd`" < `"$env:TEMP\faro-smoke.json`""
-Invoke-RestMethod http://127.0.0.1:8765/sessions
+```bash
+echo '{"hook_event_name":"UserPromptSubmit","session_id":"smoke","cwd":"/c/x"}' \
+  | bash ~/.claude/hooks/agent-monitor-report.sh
+curl -s http://127.0.0.1:8765/sessions
 ```
 
-**Manual fallback:** copy `hooks\agent-monitor-report.cmd` into `%USERPROFILE%\.claude\hooks\`,
+Expected: a JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
+
+**Manual fallback:** copy `hooks\agent-monitor-report.sh` into `%USERPROFILE%\.claude\hooks\`,
 then add a `hooks` block to `settings.json` with the same seven events, each set to
-`[{"hooks": [{"type": "command", "command": "C:\\Users\\YOU\\.claude\\hooks\\agent-monitor-report.cmd"}]}]`.
+`[{"hooks": [{"type": "command", "command": "bash \"C:/Users/YOU/.claude/hooks/agent-monitor-report.sh\""}]}]`.
 
 ---
 
@@ -126,6 +130,6 @@ Faro collapses to a right-edge count pill in the corner of your screen. The pill
 - **🔴 only detects tool-permission prompts** — not plain-text approval questions or plan-mode confirmations (§11.b(7)). The `Notification` discriminator key is unconfirmed; Faro tries both `notification_type` and `type` fields.
 - **No auto-start** — must run `npm run tauri dev` manually each session.
 - **No installer or packaging** — planned for M4.
-- **Windows: overlay only** — the window/overlay behavior has Windows parity (current virtual desktop); the reporter/hook and packaging are not yet ported (M4), and presence across all virtual desktops is deferred.
+- **Windows: overlay + reporter/hook work** — overlay parity (current virtual desktop) and the hook reporter (run via Git Bash) are ported; packaging/auto-start (M4) and presence across all virtual desktops are deferred.
 - **Overlay anchor does not re-track display changes** — the overlay's top edge locks to its first placement; display resolution/DPI/monitor changes are not re-anchored until restart.
 - **Port 8765 is hardcoded** — conflict resolution is future work.

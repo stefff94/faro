@@ -3,7 +3,11 @@ param(
   [string]$ClaudeHome = (Join-Path $env:USERPROFILE ".claude")
 )
 
-$REPORTER = "agent-monitor-report.cmd"
+# Claude Code on Windows runs hook `command` strings through Git Bash, so the reporter is the
+# POSIX shell script (the same one macOS uses) and the command is `bash "<forward-slash path>"`.
+# A backslash Windows path (e.g. a .cmd) is mangled by bash into "command not found".
+$REPORTER  = "agent-monitor-report.sh"
+$FARO_MARK = "agent-monitor-report"   # substring identifying a Faro hook group (any extension/form)
 $EVENTS = @("SessionStart","UserPromptSubmit","PreToolUse","Notification","Stop","StopFailure","SessionEnd")
 
 # Deep-convert ConvertFrom-Json output (PSCustomObject) into ordered hashtables/arrays
@@ -30,6 +34,11 @@ $hooksDir     = Join-Path $ClaudeHome "hooks"
 $dest         = Join-Path $hooksDir $REPORTER
 $settingsPath = Join-Path $ClaudeHome "settings.json"
 $srcReporter  = Join-Path $PSScriptRoot $REPORTER
+
+# Bash-resolvable command: forward slashes + a `bash` prefix (so it does NOT depend on the
+# exec bit, which a PowerShell copy cannot set). Quoted to tolerate spaces in the home path.
+$destBash        = $dest -replace '\\','/'
+$reporterCommand = 'bash "' + $destBash + '"'
 
 if (-not (Test-Path $srcReporter)) {
   Write-Host "Faro: reporter not found next to installer: $srcReporter"
@@ -69,7 +78,7 @@ foreach ($evt in $EVENTS) {
       $isFaro = $false
       if (($grp -is [System.Collections.IDictionary]) -and $grp.Contains("hooks") -and $grp["hooks"]) {
         foreach ($hh in @($grp["hooks"])) {
-          if (($hh -is [System.Collections.IDictionary]) -and $hh.Contains("command") -and ("$($hh["command"])" -like "*$REPORTER*")) {
+          if (($hh -is [System.Collections.IDictionary]) -and $hh.Contains("command") -and ("$($hh["command"])" -like "*$FARO_MARK*")) {
             $isFaro = $true
           }
         }
@@ -80,7 +89,7 @@ foreach ($evt in $EVENTS) {
       }
     }
   }
-  $faroGroup = [ordered]@{ hooks = @( ([ordered]@{ type = "command"; command = $dest }) ) }
+  $faroGroup = [ordered]@{ hooks = @( ([ordered]@{ type = "command"; command = $reporterCommand }) ) }
   $kept += ,$faroGroup
   $hooks[$evt] = @($kept)
 }
