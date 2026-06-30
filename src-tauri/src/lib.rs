@@ -120,15 +120,42 @@ fn cursor_pos_physical(scale: f64) -> Option<(i32, i32)> {
     }
 }
 
+/// Returns the global cursor position in physical pixels (top-left origin) on Windows.
+/// `GetCursorPos` already reports PHYSICAL screen pixels when the process is
+/// per-monitor DPI aware (Tauri/WebView2 declares PerMonitorV2), so — unlike the
+/// CoreGraphics path — we do NOT multiply by `scale`. `scale` is accepted only to
+/// keep the signature symmetric with the macOS implementation.
+#[cfg(target_os = "windows")]
+fn cursor_pos_physical(_scale: f64) -> Option<(i32, i32)> {
+    #[repr(C)]
+    struct POINT {
+        x: i32,
+        y: i32,
+    }
+
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetCursorPos(point: *mut POINT) -> i32; // BOOL: nonzero on success
+    }
+
+    unsafe {
+        let mut pt = POINT { x: 0, y: 0 };
+        if GetCursorPos(&mut pt) == 0 {
+            return None;
+        }
+        Some((pt.x, pt.y))
+    }
+}
+
 #[tauri::command]
 fn cursor_in_window(window: tauri::WebviewWindow, fit_state: tauri::State<ContentFitState>) -> bool {
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (&window, &fit_state);
         return false;
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         let scale = window.scale_factor().unwrap_or(1.0);
         let Some((cx, cy)) = cursor_pos_physical(scale) else {
