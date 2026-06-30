@@ -4,6 +4,15 @@ Faro is a lightweight macOS menubar widget that shows a traffic-light status ind
 
 **Scope (v0):** macOS only. Windows port is additive future work (M4). No packaging or auto-start yet — run manually for now.
 
+### Building on Windows (dev)
+
+Windows builds use the MSVC target. Requirements:
+- Visual Studio Build Tools "Desktop development with C++" (provides `link.exe` + Windows SDK).
+- `rustup toolchain install stable-x86_64-pc-windows-msvc`, then build with that toolchain
+  (e.g. `cargo +stable-x86_64-pc-windows-msvc build`, or set it as the rustup default).
+
+Windows support is in progress (overlay parity); all-virtual-desktops presence is not yet ported.
+
 ---
 
 ## Requirements
