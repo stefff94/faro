@@ -76,6 +76,29 @@ curl -s http://127.0.0.1:8765/sessions
 
 Expected: JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
 
+### Registering hook on Windows
+
+Windows uses native `.cmd` reporter installer edits `settings.json` you. Requires `curl.exe` (built into Windows 10 1803+) Windows PowerShell.
+
+**Automated (recommended):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File hooks\install-windows.ps1
+```
+
+This copies `agent-monitor-report.cmd` into `%USERPROFILE%\.claude\hooks\` merges seven hook events into `%USERPROFILE%\.claude\settings.json` (non-destructive, idempotent, `settings.json.faro-bak` backup). Restart/reload Claude Code afterward so re-reads file.
+
+**Smoke test** Faro widget running). PowerShell's `'json' | & file.cmd` does **not** deliver stdin `.cmd`, so feed payload via file:
+
+```powershell
+'{"hook_event_name":"UserPromptSubmit","session_id":"smoke","cwd":"C:/x"}' | Out-File -Encoding ascii -NoNewline "$env:TEMP\faro-smoke.json"
+& "$env:USERPROFILE\.claude\hooks\agent-monitor-report.cmd" < "$env:TEMP\faro-smoke.json"
+Start-Sleep -Seconds 1
+curl.exe -s http://127.0.0.1:8765/sessions
+```
+
+Expected: same as macOS — JSON array with `"sessionId":"smoke"` and `"status":"working"`.
+
 ---
 
 ## Status chips
