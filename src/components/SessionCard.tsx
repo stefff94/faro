@@ -8,19 +8,19 @@ const cardClass: Record<string, string> = {
 };
 
 export function SessionCard(
-  { session, now, onClick }: { session: SessionState; now: number; onClick?: () => void },
+  { session, now, onClick, compact }: { session: SessionState; now: number; onClick?: () => void; compact?: boolean },
 ) {
   return (
-    <div className={cardClass[session.status]} onClick={onClick} title={session.cwd}>
-      <StatusChip status={session.status} />
-      <div className="body">
-        <div className="proj">
-          {session.label}
-          {session.branch && <span className="branch"> {session.branch}</span>}
-        </div>
-        {session.taskSummary && <div className="task">{session.taskSummary}</div>}
+    <div className={`${cardClass[session.status]}${compact ? " compact" : ""}`} onClick={onClick} title={session.cwd}>
+      <div className="card-r1">
+        <div className="proj" title={session.label}>{session.label}</div>
+        <div className="meta">{formatDuration(now - session.statusSince)}</div>
       </div>
-      <div className="meta">{formatDuration(now - session.statusSince)}</div>
+      <div className="card-r2">
+        <StatusChip status={session.status} />
+        {session.branch && <div className="branch">{session.branch}</div>}
+      </div>
+      {session.taskSummary && <div className="task">{session.taskSummary}</div>}
     </div>
   );
 }

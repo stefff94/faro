@@ -40,12 +40,37 @@ html, body, #root { background: transparent; width: 100%; height: 100%; overflow
 .pill .rest { font-size: 11px; color: rgba(255,255,255,.4); border-top: 1px solid rgba(255,255,255,.08); padding-top: 6px; }
 
 /* cards */
-.card { display: flex; gap: 11px; align-items: center; padding: 11px 12px;
-  border-radius: 13px; margin-bottom: 7px; border: 1px solid transparent; cursor: pointer; }
+.card { padding: 10px 12px; border-radius: 13px; margin-bottom: 6px;
+  border: 1px solid transparent; cursor: pointer; transition: filter 120ms ease; }
+.card:hover { filter: brightness(1.06); }
 .card.cW { background: linear-gradient(120deg, rgba(245,197,24,.10), rgba(245,197,24,.02)); border-color: rgba(245,197,24,.18); }
 .card.cB { background: linear-gradient(120deg, rgba(239,68,68,.13), rgba(239,68,68,.03)); border-color: rgba(239,68,68,.28); }
 .card.cD { background: linear-gradient(120deg, rgba(34,197,94,.10), rgba(34,197,94,.02)); border-color: rgba(34,197,94,.16); }
 .card.cI { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.06); opacity: .7; }
+
+.card-r1 { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.proj { font-weight: 600; font-size: 13px; color: #f1f5f9;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0; }
+.meta { font-size: 11px; color: #475569; flex: none; font-variant-numeric: tabular-nums; }
+
+.card-r2 { display: flex; align-items: center; gap: 6px; }
+.branch { font-size: 10.5px; color: #64748b; font-family: ui-monospace, monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0; }
+
+.task { font-size: 11.5px; color: #94a3b8; margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.card.compact { padding: 7px 10px; }
+.card.compact .card-r1 { margin-bottom: 3px; gap: 6px; }
+.card.compact .proj { font-size: 12px; }
+.card.compact .meta { font-size: 10.5px; }
+.card.compact .chip { font-size: 9.5px; padding: 2px 6px; }
+.card.compact .branch { font-size: 10px; }
+.card.compact .task { display: none; }
+
+.pill.bhi .proj { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 .chip { font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 20px; flex: none; }
 .chip.chW { background: rgba(245,197,24,.18); color: #f5c518; }
@@ -53,12 +78,6 @@ html, body, #root { background: transparent; width: 100%; height: 100%; overflow
 .chip.chD { background: rgba(34,197,94,.18); color: #86efac; }
 .chip.chI { background: rgba(255,255,255,.08); color: #9ca3af; }
 .chip.chS { background: rgba(202,160,90,.14); color: #caa05a; }
-
-.body { flex: 1; min-width: 0; }
-.proj { font-weight: 600; font-size: 13px; color: #f3f4f6; }
-.branch { font-size: 11px; color: #6b7280; font-family: ui-monospace, monospace; }
-.task { font-size: 12px; color: #9ca3af; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.meta { font-size: 11px; color: #6b7280; flex: none; }
 
 /* detail */
 .detail { padding: 4px; }
