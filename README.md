@@ -76,9 +76,10 @@ curl -s http://127.0.0.1:8765/sessions
 
 Expected: JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
 
-### Registering hook on Windows
+### Registering the hook on Windows
 
-Windows uses native `.cmd` reporter installer edits `settings.json` you. Requires `curl.exe` (built into Windows 10 1803+) Windows PowerShell.
+Windows uses a native `.cmd` reporter and an installer that edits `settings.json` for you.
+Requires `curl.exe` (built into Windows 10 1803+) and Windows PowerShell.
 
 **Automated (recommended):**
 
@@ -86,18 +87,23 @@ Windows uses native `.cmd` reporter installer edits `settings.json` you. Require
 powershell -ExecutionPolicy Bypass -File hooks\install-windows.ps1
 ```
 
-This copies `agent-monitor-report.cmd` into `%USERPROFILE%\.claude\hooks\` merges seven hook events into `%USERPROFILE%\.claude\settings.json` (non-destructive, idempotent, `settings.json.faro-bak` backup). Restart/reload Claude Code afterward so re-reads file.
+This copies `agent-monitor-report.cmd` into `%USERPROFILE%\.claude\hooks\` and merges the
+seven hook events into `%USERPROFILE%\.claude\settings.json` (non-destructive, idempotent,
+with a `settings.json.faro-bak` backup). Restart/reload Claude Code afterward so it re-reads
+the file.
 
-**Smoke test** Faro widget running). PowerShell's `'json' | & file.cmd` does **not** deliver stdin `.cmd`, so feed payload via file:
+**Smoke test** (with the Faro widget running). PowerShell's `'json' | & file.cmd` does **not**
+deliver stdin to a `.cmd`, so feed the payload via a file:
 
 ```powershell
 '{"hook_event_name":"UserPromptSubmit","session_id":"smoke","cwd":"C:/x"}' | Out-File -Encoding ascii -NoNewline "$env:TEMP\faro-smoke.json"
-& "$env:USERPROFILE\.claude\hooks\agent-monitor-report.cmd" < "$env:TEMP\faro-smoke.json"
-Start-Sleep -Seconds 1
-curl.exe -s http://127.0.0.1:8765/sessions
+cmd /c "`"$env:USERPROFILE\.claude\hooks\agent-monitor-report.cmd`" < `"$env:TEMP\faro-smoke.json`""
+Invoke-RestMethod http://127.0.0.1:8765/sessions
 ```
 
-Expected: same as macOS — JSON array with `"sessionId":"smoke"` and `"status":"working"`.
+**Manual fallback:** copy `hooks\agent-monitor-report.cmd` into `%USERPROFILE%\.claude\hooks\`,
+then add a `hooks` block to `settings.json` with the same seven events, each set to
+`[{"hooks": [{"type": "command", "command": "C:\\Users\\YOU\\.claude\\hooks\\agent-monitor-report.cmd"}]}]`.
 
 ---
 
