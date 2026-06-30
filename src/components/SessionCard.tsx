@@ -1,5 +1,5 @@
 import type { SessionState } from "../types";
-import { formatDuration } from "../snapshot";
+import { formatDuration, sessionName } from "../snapshot";
 import { StatusChip } from "./StatusChip";
 
 const cardClass: Record<string, string> = {
@@ -13,7 +13,7 @@ export function SessionCard(
   return (
     <div className={`${cardClass[session.status]}${compact ? " compact" : ""}`} onClick={onClick} title={session.cwd}>
       <div className="card-r1">
-        <div className="proj" title={session.label}>{session.label}</div>
+        <div className="proj" title={sessionName(session)}>{sessionName(session)}</div>
         <div className="meta">{formatDuration(now - session.statusSince)}</div>
       </div>
       <div className="card-r2">

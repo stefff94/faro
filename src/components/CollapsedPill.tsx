@@ -1,4 +1,5 @@
 import type { Aggregate, AttentionPhase, SessionState } from "../types";
+import { sessionName } from "../snapshot";
 
 export function CollapsedPill(
   { agg, phase, topSession }: { agg: Aggregate; phase: AttentionPhase; topSession: SessionState | null },
@@ -10,7 +11,7 @@ export function CollapsedPill(
     return (
       <div className="pill bhi">
         <span className="chip chB">◆ serve input</span>
-        <div className="proj">{topSession.label}</div>
+        <div className="proj">{sessionName(topSession)}</div>
         {topSession.taskSummary && <div className="task">{topSession.taskSummary}</div>}
         <div className="rest">+{agg.working} lavora · +{agg.done} fatto ▸</div>
       </div>

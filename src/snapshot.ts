@@ -20,6 +20,12 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
+/** Last path segment of cwd, regardless of separator style (Unix / Windows). */
+export function sessionName(s: SessionState): string {
+  const segs = s.cwd.split(/[/\\]/).filter(Boolean);
+  return segs[segs.length - 1] || s.label;
+}
+
 export function aggregate(list: SessionState[]): Aggregate {
   const a: Aggregate = { input: 0, working: 0, done: 0, idle: 0, total: list.length };
   for (const s of list) {

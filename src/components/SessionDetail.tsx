@@ -1,5 +1,5 @@
 import type { SessionState } from "../types";
-import { formatDuration } from "../snapshot";
+import { formatDuration, sessionName } from "../snapshot";
 
 export function SessionDetail({
   session, now, muted, onMute, onPinTop, onArchive, onClose,
@@ -10,7 +10,7 @@ export function SessionDetail({
   return (
     <div className="detail">
       <div className="detail-head">
-        <span className="proj">{session.label}{session.branch && <span className="branch"> {session.branch}</span>}</span>
+        <span className="proj">{sessionName(session)}{session.branch && <span className="branch"> {session.branch}</span>}</span>
         <button className="x" onClick={onClose}>✕</button>
       </div>
       {session.taskSummary && <div className="task">{session.taskSummary}</div>}
