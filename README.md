@@ -97,5 +97,6 @@ Faro collapses to a right-edge count pill in the corner of your screen. The pill
 - **🔴 only detects tool-permission prompts** — not plain-text approval questions or plan-mode confirmations (§11.b(7)). The `Notification` discriminator key is unconfirmed; Faro tries both `notification_type` and `type` fields.
 - **No auto-start** — must run `npm run tauri dev` manually each session.
 - **No installer or packaging** — planned for M4.
-- **No Windows support** — macOS only in v0; Windows port is additive (§11.5).
+- **Windows: overlay only** — the window/overlay behavior has Windows parity (current virtual desktop); the reporter/hook and packaging are not yet ported (M4), and presence across all virtual desktops is deferred.
+- **Overlay anchor does not re-track display changes** — the overlay's top edge locks to its first placement; display resolution/DPI/monitor changes are not re-anchored until restart.
 - **Port 8765 is hardcoded** — conflict resolution is future work.
