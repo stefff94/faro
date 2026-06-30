@@ -107,7 +107,7 @@ export default function App() {
               {ordered.length === 0
                 ? <div className="empty">nessuna sessione</div>
                 : ordered.map((s) => (
-                    <SessionCard key={s.id} session={s} now={now} onClick={() => setSelectedId(s.id)} />
+                    <SessionCard key={s.id} session={s} now={now} onClick={() => setSelectedId(s.id)} compact={ordered.length >= 7} />
                   ))}
             </>
           )
