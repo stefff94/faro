@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> ⚠️ **SUPERSEDED (2026-06-30) — historical record only.** The `.cmd` reporter design below is obsolete. The e2e gate showed Claude Code on Windows runs hooks via its own **Git Bash**, so a backslash `.cmd` path is mangled into `command not found`. The shipped design reuses the macOS `agent-monitor-report.sh`, registered as `bash "<forward-slash path>"`, and removes the `.cmd`. See the **Addendum** in `docs/superpowers/specs/2026-06-30-faro-windows-reporter-design.md` and the notes in `docs/superpowers/progress-windows-reporter.md`.
+
 **Goal:** Add a native Windows reporter (`.cmd` + `curl`) and an idempotent PowerShell installer that registers the 7 Claude Code hooks, so real Windows sessions feed the Faro broker and populate the widget.
 
 **Architecture:** Purely additive, Windows-only. Two new files in `hooks/`: a `.cmd` reporter (mirror of the existing `.sh`) and a PowerShell installer that copies the reporter into `%USERPROFILE%\.claude\hooks\` and merges the hook events into `settings.json` non-destructively. No Rust/frontend changes; the broker (`127.0.0.1:8765`, already cross-platform and runtime-confirmed on Windows) and `classify` are untouched. macOS `.sh` and its README flow stay as-is.

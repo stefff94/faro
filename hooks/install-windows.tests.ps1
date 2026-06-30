@@ -45,6 +45,9 @@ $faroCmd = @(@($s.hooks.SessionStart).hooks.command | Where-Object { "$_" -like 
 Check ($faroCmd -like 'bash "*"') 'Faro command uses the bash "..." form'
 Check ($faroCmd -notlike '*\*') 'Faro command has no backslashes (bash-safe)'
 Check ($faroCmd -like '*/agent-monitor-report.sh"') 'Faro command targets the .sh via forward slashes'
+# Guard the Faro group's OWN single-element `hooks` against PS 5.1 array->object collapse (raw-text).
+$raw1 = Get-Content (Join-Path $h1 "settings.json") -Raw
+Check ($raw1 -match '"hooks"\s*:\s*\[\s*\{[^\[\]]*agent-monitor-report\.sh') "Faro group 'hooks' stays a JSON array"
 
 Write-Host "Test 2: idempotent re-run (no duplicate Faro groups)"
 Run-Installer $h1 | Out-Null
