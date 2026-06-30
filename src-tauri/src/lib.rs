@@ -36,6 +36,11 @@ fn now_ms() -> i64 {
 /// Last content-fit reported by the frontend, used for cursor hit-testing.
 struct ContentFitState(Mutex<crate::window_geom::ContentFit>);
 
+/// Locked physical top-y for the right-edge anchor. Set once on the first
+/// `resize_to_content` (the idle layout) so later resizes grow downward without
+/// the top edge drifting (gate 4: no vertical drift on expand/collapse).
+struct AnchorTop(Mutex<Option<i32>>);
+
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FitArgs {
@@ -53,6 +58,7 @@ struct FitArgs {
 fn resize_to_content(
     window: tauri::WebviewWindow,
     fit_state: tauri::State<ContentFitState>,
+    anchor: tauri::State<AnchorTop>,
     fit: FitArgs,
 ) -> tauri::Result<()> {
     use tauri::{LogicalSize, PhysicalPosition};
@@ -72,12 +78,20 @@ fn resize_to_content(
         let scale = window.scale_factor()?;
         let win_w_phys = (fit.win_w * scale).round() as i32;
         let win_h_phys = (fit.win_h * scale).round() as i32;
-        let (x, y) = crate::window_geom::right_edge_position(
+        let (x, y_candidate) = crate::window_geom::right_edge_position(
             screen.width as i32,
             screen.height as i32,
             win_w_phys,
             win_h_phys,
         );
+        // x stays right-edge flush on every resize. y is locked to the FIRST placement
+        // (the idle layout) and reused, so the panel grows downward without the top edge
+        // drifting (gate 4: no vertical drift on expand/collapse). The win_h-dependent y
+        // from right_edge_position would re-center the window as it grows, lifting the
+        // top — and since that shift is in physical px, it scales with the DPI factor
+        // (visible on fractional Windows scaling; hidden by macOS integer 2x).
+        let mut anchored = anchor.0.lock().unwrap();
+        let y = *anchored.get_or_insert(y_candidate);
         window.set_position(PhysicalPosition::new(x, y))?;
     }
     Ok(())
@@ -190,6 +204,7 @@ pub fn run() {
             app.manage(ContentFitState(Mutex::new(
                 crate::window_geom::ContentFit { x: 0.0, y: 0.0, w: 0.0, h: 0.0 },
             )));
+            app.manage(AnchorTop(Mutex::new(None)));
             // Show on every Space/desktop. We intentionally do NOT request
             // fullScreenAuxiliary: the widget yields to fullscreen apps.
             let _ = window.set_visible_on_all_workspaces(true);
