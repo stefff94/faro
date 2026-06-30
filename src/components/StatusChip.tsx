@@ -6,7 +6,7 @@ const CHIP: Record<Status, { cls: string; label: string }> = {
   error:   { cls: "chip chB", label: "◆ error" },
   done:    { cls: "chip chD", label: "✓ done" },
   idle:    { cls: "chip chI", label: "· idle" },
-  stale:   { cls: "chip chI", label: "· idle" },
+  stale:   { cls: "chip chS", label: "◌ stale" },
 };
 
 export function StatusChip({ status }: { status: Status }) {

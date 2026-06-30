@@ -52,6 +52,7 @@ html, body, #root { background: transparent; width: 100%; height: 100%; overflow
 .chip.chB { background: rgba(239,68,68,.2); color: #fca5a5; }
 .chip.chD { background: rgba(34,197,94,.18); color: #86efac; }
 .chip.chI { background: rgba(255,255,255,.08); color: #9ca3af; }
+.chip.chS { background: rgba(202,160,90,.14); color: #caa05a; }
 
 .body { flex: 1; min-width: 0; }
 .proj { font-weight: 600; font-size: 13px; color: #f3f4f6; }
