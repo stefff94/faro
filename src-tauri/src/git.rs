@@ -84,9 +84,12 @@ fn branch_for_path(cwd: &str) -> std::io::Result<Option<String>> {
         }
     }
 
-    // Cache miss: read .git/HEAD
-    let head_path = format!("{}/HEAD", git_path);
-    let head_contents = fs::read_to_string(head_path)?;
+    // Cache miss: read .git/HEAD. Build the path with Path::join, not a "/"-format:
+    // `git_path` is canonicalized, which on Windows yields a verbatim `\\?\C:\...` path
+    // whose separators are NOT normalized, so `format!("{}/HEAD", ..)` produced an
+    // invalid path and the read failed (branch detection silently returned None).
+    let head_path = Path::new(&git_path).join("HEAD");
+    let head_contents = fs::read_to_string(&head_path)?;
     let branch = parse_head(&head_contents);
 
     // Store in cache
