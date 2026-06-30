@@ -6,7 +6,7 @@ use crate::model::{HookEvent, SessionState, Status};
 use crate::transcript;
 
 pub fn label_from_cwd(cwd: Option<&str>) -> String {
-    cwd.and_then(|c| c.trim_end_matches('/').rsplit('/').next())
+    cwd.and_then(|c| c.trim_end_matches(['/', '\\']).rsplit(['/', '\\']).next())
         .filter(|s| !s.is_empty())
         .unwrap_or("session")
         .to_string()
@@ -164,6 +164,7 @@ mod tests {
     fn label_falls_back_when_no_cwd() {
         assert_eq!(label_from_cwd(None), "session");
         assert_eq!(label_from_cwd(Some("/Users/x/proj")), "proj");
+        assert_eq!(label_from_cwd(Some("C:\\Users\\x\\proj")), "proj");
     }
 
     #[test]
