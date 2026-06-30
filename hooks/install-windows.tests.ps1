@@ -54,6 +54,15 @@ $code3 = Run-Installer $h3
 Check ($code3 -ne 0) "installer exits non-zero on malformed settings"
 Check (((Get-Content (Join-Path $h3 "settings.json") -Raw).Trim()) -eq $bad) "malformed settings.json left unchanged"
 
+Write-Host "Test 4: a pre-existing non-Faro hook keeps its array structure"
+$h4 = New-TempHome
+$seed4 = @{ hooks = @{ PreToolUse = @( @{ matcher = "Bash"; hooks = @( @{ type = "command"; command = "C:/other/hook.cmd" } ) } ) } }
+$seed4 | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $h4 "settings.json") -Encoding UTF8
+Run-Installer $h4 | Out-Null
+$raw4 = (Get-Content (Join-Path $h4 "settings.json") -Raw)
+Check ($raw4 -match '"hooks"\s*:\s*\[\s*\{[^\[\]]*other/hook\.cmd') "pre-existing non-Faro hook 'hooks' stays a JSON array"
+Remove-Item -Recurse -Force $h4 -ErrorAction SilentlyContinue
+
 Remove-Item -Recurse -Force $h1, $h3 -ErrorAction SilentlyContinue
 if ($script:fail -gt 0) { Write-Host "`n$($script:fail) assertion(s) FAILED"; exit 1 }
 Write-Host "`nAll installer tests passed"; exit 0

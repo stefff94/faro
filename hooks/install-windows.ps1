@@ -74,7 +74,10 @@ foreach ($evt in $EVENTS) {
           }
         }
       }
-      if (-not $isFaro) { $kept += ,$grp }
+      if (-not $isFaro) {
+        if (($grp -is [System.Collections.IDictionary]) -and $grp.Contains("hooks")) { $grp["hooks"] = @($grp["hooks"]) }
+        $kept += ,$grp
+      }
     }
   }
   $faroGroup = [ordered]@{ hooks = @( ([ordered]@{ type = "command"; command = $dest }) ) }
