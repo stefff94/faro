@@ -15,6 +15,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{Emitter, Manager, PhysicalPosition};
 use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_updater::UpdaterExt;
 
 use crate::http::{OnChange, SharedStore};
 use crate::store::SessionStore;
@@ -235,6 +236,19 @@ fn faro_register_hooks(app: tauri::AppHandle) -> Result<bool, String> {
     }
 }
 
+/// Check the configured endpoint; if a newer signed build exists, install it and relaunch.
+pub async fn check_and_update(app: tauri::AppHandle) {
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    if let Ok(Some(update)) = updater.check().await {
+        if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+            app.restart();
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -243,6 +257,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             cursor_in_window,
@@ -268,6 +283,15 @@ pub fn run() {
             }
 
             crate::tray::build_tray(app)?;
+
+            // Non-blocking startup check: install a newer signed build if the
+            // configured endpoint reports one, then relaunch.
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::check_and_update(handle).await;
+                });
+            }
 
             // Show on every Space/desktop. We intentionally do NOT request
             // fullScreenAuxiliary: the widget yields to fullscreen apps.

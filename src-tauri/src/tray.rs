@@ -17,9 +17,10 @@ pub fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .checked(autostart_on)
         .build(app)?;
     let reinstall: MenuItem<_> = MenuItemBuilder::with_id("reinstall", "Ripristina hook").build(app)?;
+    let update: MenuItem<_> = MenuItemBuilder::with_id("update", "Controlla aggiornamenti").build(app)?;
     let quit: MenuItem<_> = MenuItemBuilder::with_id("quit", "Esci").build(app)?;
 
-    let menu = Menu::with_items(app, &[&status, &autostart, &reinstall, &quit])?;
+    let menu = Menu::with_items(app, &[&status, &autostart, &reinstall, &update, &quit])?;
 
     TrayIconBuilder::with_id("faro-tray")
         .icon(app.default_window_icon().unwrap().clone())
@@ -29,6 +30,12 @@ pub fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             "quit" => app.exit(0),
             "reinstall" => {
                 let _ = crate::do_register(app);
+            }
+            "update" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::check_and_update(app).await;
+                });
             }
             "autostart" => {
                 let mgr = app.autolaunch();
