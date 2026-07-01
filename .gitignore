@@ -25,3 +25,7 @@ dist-ssr
 
 # Superpowers brainstorming companion (local, transient)
 .superpowers/
+
+# Tauri updater signing key (private key must never be committed)
+faro-updater.key
+faro-updater.key.pub
