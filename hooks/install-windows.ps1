@@ -1,3 +1,6 @@
+# SUPERSEDED — manual fallback only.
+# Faro now registers its Claude Code hooks itself on first launch (see src-tauri/src/hooks_install.rs).
+# This script is retained only for registering hooks WITHOUT launching the app.
 [CmdletBinding()]
 param(
   [string]$ClaudeHome = (Join-Path $env:USERPROFILE ".claude")
