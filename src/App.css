@@ -90,3 +90,27 @@ html, body, #root { background: transparent; width: 100%; height: 100%; overflow
 .actions button { font-size: 11px; padding: 5px 9px; border-radius: 8px;
   border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05); color: #e5e7eb; cursor: pointer; }
 .actions button:hover { background: rgba(255,255,255,.1); }
+
+.consent {
+  font: 13px/1.4 system-ui, sans-serif;
+  color: #e8e8ea;
+  background: rgba(20, 20, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  width: 260px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+.consent-title { font-weight: 700; margin-bottom: 6px; }
+.consent-body { opacity: 0.85; margin-bottom: 10px; }
+.consent-err { color: #ff8585; margin-bottom: 8px; font-size: 12px; }
+.consent-actions { display: flex; gap: 8px; }
+.consent-primary {
+  background: #4c8bf5; color: white; border: 0;
+  border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+.consent-later {
+  background: transparent; color: #b8b8bd;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
