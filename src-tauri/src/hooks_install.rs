@@ -117,8 +117,15 @@ pub fn install_hooks(claude_home: &Path) -> InstallReport {
     let mut backup_made = false;
     if settings_path.exists() {
         let bak = claude_home.join("settings.json.faro-bak");
-        if fs::copy(&settings_path, &bak).is_ok() {
-            backup_made = true;
+        match fs::copy(&settings_path, &bak) {
+            Ok(_) => backup_made = true,
+            Err(e) => {
+                return InstallReport {
+                    registered: false,
+                    backup_made: false,
+                    error: Some(format!("backup fallito: {e}")),
+                }
+            }
         }
     }
 
@@ -230,6 +237,23 @@ mod tests {
         assert!(rep.registered);
         assert!(rep.backup_made);
         assert!(tmp.path().join("settings.json.faro-bak").exists());
+    }
+
+    #[test]
+    fn install_aborts_when_backup_fails() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("settings.json"), "{\"model\":\"opus\"}").unwrap();
+        // Make the backup target an existing directory so fs::copy to it fails.
+        std::fs::create_dir(tmp.path().join("settings.json.faro-bak")).unwrap();
+        let rep = install_hooks(tmp.path());
+        assert!(!rep.registered);
+        assert!(!rep.backup_made);
+        assert!(rep.error.is_some());
+        // settings.json must be untouched
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join("settings.json")).unwrap(),
+            "{\"model\":\"opus\"}"
+        );
     }
 
     #[test]
