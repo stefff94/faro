@@ -8,6 +8,7 @@ pub mod store;
 pub mod transcript;
 pub mod window_geom;
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -190,6 +191,47 @@ fn set_cursor_passthrough(window: tauri::WebviewWindow, passthrough: bool) {
     let _ = window.set_ignore_cursor_events(passthrough);
 }
 
+/// Path of the one-shot consent marker inside the app config dir.
+fn consent_marker(app: &tauri::AppHandle) -> Option<PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join("setup-consented"))
+}
+
+/// Register hooks and, on success, persist consent and enable login autostart.
+/// Used by both the command and the silent re-assert on launch.
+fn do_register(app: &tauri::AppHandle) -> crate::hooks_install::InstallReport {
+    let Some(home) = crate::hooks_install::claude_home() else {
+        return crate::hooks_install::InstallReport {
+            registered: false, backup_made: false,
+            error: Some("home directory non trovata".into()),
+        };
+    };
+    let report = crate::hooks_install::install_hooks(&home);
+    if report.registered {
+        if let Some(marker) = consent_marker(app) {
+            if let Some(parent) = marker.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&marker, "1");
+        }
+    }
+    report
+}
+
+#[tauri::command]
+fn faro_setup_state(app: tauri::AppHandle) -> bool {
+    consent_marker(&app).map(|p| p.exists()).unwrap_or(false)
+}
+
+#[tauri::command]
+fn faro_register_hooks(app: tauri::AppHandle) -> Result<bool, String> {
+    let report = do_register(&app);
+    if report.registered {
+        Ok(true)
+    } else {
+        Err(report.error.unwrap_or_else(|| "registrazione fallita".into()))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -198,7 +240,9 @@ pub fn run() {
             greet,
             cursor_in_window,
             set_cursor_passthrough,
-            resize_to_content
+            resize_to_content,
+            faro_setup_state,
+            faro_register_hooks
         ])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
@@ -206,6 +250,16 @@ pub fn run() {
                 crate::window_geom::ContentFit { x: 0.0, y: 0.0, w: 0.0, h: 0.0 },
             )));
             app.manage(AnchorTop(Mutex::new(None)));
+
+            // If the user consented in a past launch, silently re-assert the hook
+            // registration (idempotent) so a moved home path or updated reporter heals.
+            {
+                let handle = app.handle().clone();
+                if consent_marker(&handle).map(|p| p.exists()).unwrap_or(false) {
+                    let _ = do_register(&handle);
+                }
+            }
+
             // Show on every Space/desktop. We intentionally do NOT request
             // fullScreenAuxiliary: the widget yields to fullscreen apps.
             let _ = window.set_visible_on_all_workspaces(true);
