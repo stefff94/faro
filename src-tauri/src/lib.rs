@@ -199,8 +199,10 @@ fn consent_marker(app: &tauri::AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|d| d.join("setup-consented"))
 }
 
-/// Register hooks and, on success, persist consent and enable login autostart.
-/// Used by both the command and the silent re-assert on launch.
+/// Register hooks and, on success, persist consent. Used by the command, the
+/// silent re-assert on launch, and the tray's "Ripristina hook" — none of
+/// these should re-enable autostart, which is a user-owned toggle set only
+/// on first explicit consent.
 fn do_register(app: &tauri::AppHandle) -> crate::hooks_install::InstallReport {
     let Some(home) = crate::hooks_install::claude_home() else {
         return crate::hooks_install::InstallReport {
@@ -216,7 +218,6 @@ fn do_register(app: &tauri::AppHandle) -> crate::hooks_install::InstallReport {
             }
             let _ = std::fs::write(&marker, "1");
         }
-        let _ = app.autolaunch().enable();
     }
     report
 }
@@ -230,6 +231,7 @@ fn faro_setup_state(app: tauri::AppHandle) -> bool {
 fn faro_register_hooks(app: tauri::AppHandle) -> Result<bool, String> {
     let report = do_register(&app);
     if report.registered {
+        let _ = app.autolaunch().enable();
         Ok(true)
     } else {
         Err(report.error.unwrap_or_else(|| "registrazione fallita".into()))
