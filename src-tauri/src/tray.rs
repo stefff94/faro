@@ -48,7 +48,7 @@ pub fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 #[cfg(target_os = "windows")]
 fn bash_status() -> &'static str {
     let ok = std::process::Command::new("bash").arg("--version").output().is_ok();
-    if ok { "● hook attivi" } else { "⚠ Git Bash non trovato" }
+    if ok { "● hook attivi" } else { "⚠ Git Bash non trovato — hook non operativi" }
 }
 
 #[cfg(not(target_os = "windows"))]
