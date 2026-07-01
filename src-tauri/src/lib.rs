@@ -6,6 +6,7 @@ pub mod model;
 pub mod source;
 pub mod store;
 pub mod transcript;
+pub mod tray;
 pub mod window_geom;
 
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{Emitter, Manager, PhysicalPosition};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::http::{OnChange, SharedStore};
 use crate::store::SessionStore;
@@ -213,6 +215,7 @@ fn do_register(app: &tauri::AppHandle) -> crate::hooks_install::InstallReport {
             }
             let _ = std::fs::write(&marker, "1");
         }
+        let _ = app.autolaunch().enable();
     }
     report
 }
@@ -236,6 +239,10 @@ fn faro_register_hooks(app: tauri::AppHandle) -> Result<bool, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![]),
+        ))
         .invoke_handler(tauri::generate_handler![
             greet,
             cursor_in_window,
@@ -259,6 +266,8 @@ pub fn run() {
                     let _ = do_register(&handle);
                 }
             }
+
+            crate::tray::build_tray(app)?;
 
             // Show on every Space/desktop. We intentionally do NOT request
             // fullScreenAuxiliary: the widget yields to fullscreen apps.
