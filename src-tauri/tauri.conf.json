@@ -31,6 +31,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,5 +39,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/stefff94/faro/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY3ODgxRkNCQjE1OTc3MjgKUldRb2QxbXh5eCtJWjhWNWRzaTg2OGpLM3Y1Z2J1MFdqb0o2Y2owWS9kS1IrK1ZSeUhJOE42U20K"
+    }
   }
 }

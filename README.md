@@ -33,73 +33,31 @@ The overlay appears top-right. The broker listens on `127.0.0.1:8765`.
 
 ---
 
-## Hook registration
+## Install (for colleagues)
 
-Faro receives events from Claude Code via `hooks/agent-monitor-report.sh`, which forwards every hook payload to the broker.
+Download the latest installer from the [Releases page](https://github.com/stefff94/faro/releases/latest):
 
-### macOS
+- **Windows:** run the `.msi`. SmartScreen may say "unknown publisher" → **More info → Run anyway** (once).
+- **macOS:** open the `.dmg`, drag Faro to Applications, then **right-click the app → Open** the first time (it is not yet notarized). Alternatively: `xattr -dr com.apple.quarantine /Applications/Faro.app`.
 
-**1. Install the script:**
+On first launch Faro shows a one-time card — click **Attiva** and it registers its Claude Code hooks itself. Nothing else to configure. It then lives in the system tray (Windows: behind the ∧ overflow; macOS: menu bar), starts at login, and auto-updates.
 
-```bash
-mkdir -p ~/.claude/hooks
-cp hooks/agent-monitor-report.sh ~/.claude/hooks/agent-monitor-report.sh
-chmod +x ~/.claude/hooks/agent-monitor-report.sh
-```
+**Windows prerequisite:** Git for Windows (Git Bash) must be installed — Claude Code needs it anyway, and Faro's reporter runs through it. If the tray shows "⚠ Git Bash non trovato", install [Git for Windows](https://git-scm.com/download/win).
 
-**2. Merge into `~/.claude/settings.json`** (do not overwrite — merge the `hooks` block):
+## Updating
 
-```json
-{
-  "hooks": {
-    "SessionStart":     [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}],
-    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}],
-    "PreToolUse":       [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}],
-    "Notification":     [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}],
-    "Stop":             [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}],
-    "StopFailure":      [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}],
-    "SessionEnd":       [{"hooks": [{"type": "command", "command": "/Users/YOU/.claude/hooks/agent-monitor-report.sh"}]}]
-  }
-}
-```
+Faro checks GitHub Releases on launch and updates itself. You can also trigger a check from the tray ("Controlla aggiornamenti").
 
-Replace `/Users/YOU` with your actual home path (`echo $HOME`).
+## Building from source (maintainers)
 
-**3. Smoke test** (with `npm run tauri dev` running):
+Requirements — macOS: macOS 12+, Rust, Node 20+. Windows: Rust MSVC toolchain, Visual Studio Build Tools (Desktop C++), Node 20+, Git for Windows.
 
 ```bash
-echo '{"hook_event_name":"UserPromptSubmit","session_id":"smoke","cwd":"/tmp/smoke"}' \
-  | ~/.claude/hooks/agent-monitor-report.sh
-sleep 1
-curl -s http://127.0.0.1:8765/sessions
+npm install
+npm run tauri dev      # run locally
 ```
 
-Expected: JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
-
-### Windows
-
-Claude Code runs hooks through **Git Bash**, so the same POSIX script is used on Windows, registered as `bash "<forward-slash-path>"`. A native `.cmd` with backslash paths does **not** work.
-
-**Automated (recommended)** — from PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File hooks\install-windows.ps1
-```
-
-This copies `agent-monitor-report.sh` to `%USERPROFILE%\.claude\hooks\` and merges the seven hook events into `%USERPROFILE%\.claude\settings.json` (non-destructive, idempotent — creates a `settings.json.faro-bak` backup). Start a **new** Claude Code session afterward; hooks are read at session start.
-
-**Smoke test** — from **Git Bash**:
-
-```bash
-echo '{"hook_event_name":"UserPromptSubmit","session_id":"smoke","cwd":"/c/x"}' \
-  | bash ~/.claude/hooks/agent-monitor-report.sh
-curl -s http://127.0.0.1:8765/sessions
-```
-
-Expected: JSON array containing `"sessionId":"smoke"` with `"status":"working"`.
-
-**Manual fallback:** Copy `hooks\agent-monitor-report.sh` to `%USERPROFILE%\.claude\hooks\`, then add the seven events to `settings.json`, each registered as:
-`[{"hooks": [{"type": "command", "command": "bash \"C:/Users/YOU/.claude/hooks/agent-monitor-report.sh\""}]}]`
+Cutting a release: bump the version, then `git tag vX.Y.Z && git push --tags`. CI builds both platforms and publishes the Release.
 
 ---
 
@@ -135,7 +93,8 @@ The overlay collapses to a right-edge count pill. The pill escalates to an evide
 ## Known limitations
 
 - **Only detects tool-permission prompts** — not plain-text approval questions or plan-mode confirmations. The `Notification` discriminator key is unconfirmed; Faro tries both `notification_type` and `type` fields.
-- **No auto-start** — must run `npm run tauri dev` manually each session. Packaging and installer are future work.
+- **No OS code signing yet** — first launch shows a SmartScreen (Windows) / Gatekeeper (macOS) warning; bypass once as described under Install. Apple notarization + a Windows certificate are future work.
+- **Windows requires Git Bash** — the reporter runs via `bash`; without Git for Windows the hooks are not operative (the tray flags this).
 - **Overlay anchor does not re-track display changes** — the overlay locks to its first placement; resolution, DPI, or monitor changes require a restart to re-anchor.
 - **Port 8765 is hardcoded** — conflict resolution is future work.
 - **VS Code extension never reaches `done`** — the Claude Code VS Code extension does not fire the `Stop` hook ([#40029](https://github.com/anthropics/claude-code/issues/40029), [#49851](https://github.com/anthropics/claude-code/issues/49851)). Sessions started from the extension chat panel go `working` → `stale` and never show `done`. Run Claude from the **integrated terminal** (`claude`) for accurate status.

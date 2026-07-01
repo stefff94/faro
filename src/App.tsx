@@ -12,6 +12,7 @@ import { CollapsedPill } from "./components/CollapsedPill";
 import { DrawerPanel } from "./components/DrawerPanel";
 import { SessionCard } from "./components/SessionCard";
 import { SessionDetail } from "./components/SessionDetail";
+import { FirstRunConsent } from "./components/FirstRunConsent";
 
 export default function App() {
   const [sessions, setSessions] = useState<SessionState[]>([]);
@@ -21,6 +22,13 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pinnedTop, setPinnedTop] = useState<string[]>([]);
   const [now, setNow] = useState(Date.now());
+  const [consented, setConsented] = useState<boolean | null>(null);
+  useEffect(() => {
+    invoke<boolean>("faro_setup_state")
+      .then(setConsented)
+      .catch(() => setConsented(true)); // fail open: never block the overlay
+  }, []);
+  const showConsent = consented === false;
   const rootRef = useRef<HTMLDivElement>(null);
   useWindowFit(rootRef);
 
@@ -78,13 +86,15 @@ export default function App() {
     <div className="faro-root">
       <DrawerPanel
         rootRef={rootRef}
-        open={open}
+        open={open || showConsent}
         onEnter={() => setHovering(true)}
         onLeave={() => setHovering(false)}
         onToggle={() => setPinned((p) => !p)}
         pill={<CollapsedPill agg={agg} phase={phase} topSession={topSession} />}
         panel={
-          selected ? (
+          showConsent ? (
+            <FirstRunConsent onDone={() => setConsented(true)} />
+          ) : selected ? (
             <SessionDetail
               session={selected} now={now} muted={isMuted(settings, selected.id)}
               onClose={() => setSelectedId(null)}

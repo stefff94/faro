@@ -1,16 +1,21 @@
 pub mod classify;
 pub mod git;
+pub mod hooks_install;
 pub mod http;
 pub mod model;
 pub mod source;
 pub mod store;
 pub mod transcript;
+pub mod tray;
 pub mod window_geom;
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{Emitter, Manager, PhysicalPosition};
+use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_updater::UpdaterExt;
 
 use crate::http::{OnChange, SharedStore};
 use crate::store::SessionStore;
@@ -189,15 +194,79 @@ fn set_cursor_passthrough(window: tauri::WebviewWindow, passthrough: bool) {
     let _ = window.set_ignore_cursor_events(passthrough);
 }
 
+/// Path of the one-shot consent marker inside the app config dir.
+fn consent_marker(app: &tauri::AppHandle) -> Option<PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join("setup-consented"))
+}
+
+/// Register hooks and, on success, persist consent. Used by the command, the
+/// silent re-assert on launch, and the tray's "Ripristina hook" — none of
+/// these should re-enable autostart, which is a user-owned toggle set only
+/// on first explicit consent.
+fn do_register(app: &tauri::AppHandle) -> crate::hooks_install::InstallReport {
+    let Some(home) = crate::hooks_install::claude_home() else {
+        return crate::hooks_install::InstallReport {
+            registered: false, backup_made: false,
+            error: Some("home directory non trovata".into()),
+        };
+    };
+    let report = crate::hooks_install::install_hooks(&home);
+    if report.registered {
+        if let Some(marker) = consent_marker(app) {
+            if let Some(parent) = marker.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&marker, "1");
+        }
+    }
+    report
+}
+
+#[tauri::command]
+fn faro_setup_state(app: tauri::AppHandle) -> bool {
+    consent_marker(&app).map(|p| p.exists()).unwrap_or(false)
+}
+
+#[tauri::command]
+fn faro_register_hooks(app: tauri::AppHandle) -> Result<bool, String> {
+    let report = do_register(&app);
+    if report.registered {
+        let _ = app.autolaunch().enable();
+        Ok(true)
+    } else {
+        Err(report.error.unwrap_or_else(|| "registrazione fallita".into()))
+    }
+}
+
+/// Check the configured endpoint; if a newer signed build exists, install it and relaunch.
+pub async fn check_and_update(app: tauri::AppHandle) {
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    if let Ok(Some(update)) = updater.check().await {
+        if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+            app.restart();
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![]),
+        ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             cursor_in_window,
             set_cursor_passthrough,
-            resize_to_content
+            resize_to_content,
+            faro_setup_state,
+            faro_register_hooks
         ])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
@@ -205,6 +274,27 @@ pub fn run() {
                 crate::window_geom::ContentFit { x: 0.0, y: 0.0, w: 0.0, h: 0.0 },
             )));
             app.manage(AnchorTop(Mutex::new(None)));
+
+            // If the user consented in a past launch, silently re-assert the hook
+            // registration (idempotent) so a moved home path or updated reporter heals.
+            {
+                let handle = app.handle().clone();
+                if consent_marker(&handle).map(|p| p.exists()).unwrap_or(false) {
+                    let _ = do_register(&handle);
+                }
+            }
+
+            crate::tray::build_tray(app)?;
+
+            // Non-blocking startup check: install a newer signed build if the
+            // configured endpoint reports one, then relaunch.
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::check_and_update(handle).await;
+                });
+            }
+
             // Show on every Space/desktop. We intentionally do NOT request
             // fullScreenAuxiliary: the widget yields to fullscreen apps.
             let _ = window.set_visible_on_all_workspaces(true);
